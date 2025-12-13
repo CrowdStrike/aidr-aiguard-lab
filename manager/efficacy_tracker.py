@@ -1,6 +1,3 @@
-# Copyright 2021 Pangea Cyber Corporation
-# Author: Pangea Cyber Corporation
-
 import sys
 import json
 import csv
@@ -11,13 +8,11 @@ import time
 
 
 from collections import Counter, defaultdict
-from typing import List, Dict, TypedDict, Optional
+from typing import List, Dict, TypedDict
 from requests.models import Response
-# from pydantic import BaseModel, Field
 
-from testcase.testcase import TestCase, ExpectedDetectors
-        
-# from api.pangea_api import pangea_post_api, poll_request
+from testcase.testcase import TestCase
+
 from utils.utils import (
     apply_synonyms,
     formatted_json_str,
@@ -44,8 +39,8 @@ class ErrorRequestResponse:
 
 class EfficacyTracker:
     class FailedTestCase:
-        def __init__(self, 
-                     test: TestCase, 
+        def __init__(self,
+                     test: TestCase,
                      expected_label: str = "",
                      detector_seen: str = "",
                      detector_not_seen: str = ""):
@@ -64,7 +59,7 @@ class EfficacyTracker:
         self.args = args
         self.verbose = args.verbose if args else False
         self.debug = args.debug if args else False
-        self.track_tp_and_tn_cases = keep_tp_and_tn_tests 
+        self.track_tp_and_tn_cases = keep_tp_and_tn_tests
         self.use_labels_as_detectors = args.use_labels_as_detectors if args else False
         self._lock = threading.Lock()
         # Overall counts
@@ -86,12 +81,12 @@ class EfficacyTracker:
 
         # Save collections of false positives, false negatives
         # for reporting (fps_out and fns_out).
-        # These will have copies of TestCase objects that have 
+        # These will have copies of TestCase objects that have
         # FPs, TPs, FNs or TNs (TPs and TNs only if track_tp_and_tn_cases is True)
-        # But there will be only one copy a given test case in each collection, 
+        # But there will be only one copy a given test case in each collection,
         # even if it has multiple FPs, TPs, FNs or TNs.
         # So the count of each collection will be the number of test cases
-        # that had FPs, TPs, FNs or TNs.  The sum of the counts of all 
+        # that had FPs, TPs, FNs or TNs.  The sum of the counts of all
         # collection should be the total number of test cases processed.
         # TODO: Check at the end that the sum of the counts of all collections
         # is equal to self.total_calls.
@@ -114,7 +109,7 @@ class EfficacyTracker:
     ):
         """
         Add a test case to the false positives collection.
-        This is used to track test cases where no detection was expected 
+        This is used to track test cases where no detection was expected
         for the given detector, but detection was seen.
         """
         with self._lock:
@@ -276,7 +271,7 @@ class EfficacyTracker:
             They should have been removed if seen - benign means no detection expected.
 
         """
-       
+
         # Default negative_labels if none passed
         if negative_labels is None:
             negative_labels = [f"{defaults.not_topic_prefix}*"]  # default pattern
@@ -480,7 +475,7 @@ class EfficacyTracker:
 
         # --------------------------------------------------------------
         # Any detection that does not match an expected label is a False Positive.
-        # --------------------------------------------------------------  
+        # --------------------------------------------------------------
         for detected in detected_detectors_labels:
             if detected not in expected_labels:
                 fp_detected = True
@@ -1055,4 +1050,3 @@ class EfficacyTracker:
             if expected != actual:
                 return False, (expected, actual)
             return True, None
-
