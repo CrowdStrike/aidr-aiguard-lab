@@ -1,20 +1,14 @@
-# Copyright 2021 Pangea Cyber Corporation
-# Author: Pangea Cyber Corporation
-
+from argparse import Namespace
 import os
 import json
 import csv
-from datetime import datetime
-from tzlocal import get_localzone
 import threading
 
 
 from collections import Counter, defaultdict
-from typing import List, Dict, Optional
-from typing import TypedDict, Dict
-from pydantic import BaseModel, Field
+from typing import List, Dict, Literal, Optional
+from pydantic import BaseModel
 
-# from requests import Response
 from threading import Semaphore
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -25,7 +19,7 @@ from config.log_fields import LogFields
 from testcase.testcase import TestCase
 from .efficacy_tracker import EfficacyTracker, ErrorRequestResponse
 from utils.utils import normalize_topics_and_detectors
-        
+
 from api.pangea_api import pangea_post_api, poll_request, base_url
 from utils.utils import (
     remove_topic_prefix,
@@ -37,12 +31,9 @@ from utils.utils import (
     rate_limited,
 )
 from utils.colors import (
-    RED,
     DARK_RED,
     DARK_YELLOW,
-    GREEN,
     DARK_GREEN,
-    BRIGHT_GREEN,
     RESET,
 )
 from defaults import defaults
@@ -62,21 +53,19 @@ class AIGuardManager:
             "topic": "topic",
         }
     }
+
+    service: Literal["aiguard", "aidr"] = "aidr"
+
     def __init__(
         self,
-        args,
+        args: Namespace,
         skip_cache: bool = defaults.ai_guard_skip_cache,
-        service: str = defaults.ai_guard_service,
         endpoint: str = defaults.ai_guard_endpoint,
     ):
 
         self._lock = threading.Lock()
 
-        self.service = args.service
-        if self.service == "aidr":
-            self.endpoint = defaults.aidr_guard_endpoint
-        else:
-            self.endpoint = endpoint
+        self.endpoint = defaults.aidr_guard_endpoint
 
         # Parse AIDR config if provided
         self.aidr_config = None
@@ -89,12 +78,6 @@ class AIGuardManager:
         self.max_poll_attempts = args.max_poll_attempts
 
         self.skip_cache = skip_cache
-
-        self.service = args.service
-        if self.service == "aidr":
-            self.endpoint = defaults.aidr_guard_endpoint
-        else:
-            self.endpoint = endpoint
 
         self.use_labels_as_detectors = args.use_labels_as_detectors
         self.report_any_topic = args.report_any_topic
@@ -129,7 +112,7 @@ class AIGuardManager:
                 f"Valid topics are: {', '.join(self.valid_topics)}.{RESET}"
             )
             raise ValueError(f"Invalid detectors or topics specified: {', '.join(invalid)}")
-        
+
         # Ensure the internal enabled_topics doesn't have the "topic:" prefix.
         self.enabled_topics = remove_topic_prefix(self.enabled_detectors)
 
@@ -150,7 +133,7 @@ class AIGuardManager:
             [l.strip().lower() for l in args.malicious_prompt_labels.split(",")] if args.malicious_prompt_labels else []
         )
         if not self.malicious_prompt_labels:
-            self.malicious_prompt_labels = defaults.malicious_prompt_labels 
+            self.malicious_prompt_labels = defaults.malicious_prompt_labels
 
         self.benign_labels: list[str] = []
         self.benign_labels = (
@@ -165,7 +148,7 @@ class AIGuardManager:
         # Ensure that there's no overlap between benign_labels and malicious_prompt_labels
         # TODO: This should be done when we receive the command line arguments, so we can validate.
         if set(self.benign_labels) & set(self.malicious_prompt_labels):
-            raise ValueError("Benign and malicious prompt labels must not overlap.")            
+            raise ValueError("Benign and malicious prompt labels must not overlap.")
 
         # TODO: Should these all be moved into EfficacyTracker?
         self.detected_detectors: Counter = Counter()
@@ -423,7 +406,7 @@ class AIGuardManager:
         return detected_with_details
 
     def update_detected_counts(self, detected_detectors):
-        # TODO: May want to replace the "prompt_injection" key with "malicious-prompt"             
+        # TODO: May want to replace the "prompt_injection" key with "malicious-prompt"
         with self._lock:
             self.detected_detectors.update(detected_detectors.keys())
             for detector in detected_detectors.keys():
@@ -448,7 +431,7 @@ class AIGuardManager:
                 elif detector == "topic":
                     topics = value
                     if topics:
-                        for topic in topics:                        
+                        for topic in topics:
                             self.detected_topics[topic] += 1
                 elif detector == "language_detection":
                     languages = detected_detectors[detector]
@@ -468,7 +451,7 @@ class AIGuardManager:
         Assumes that the label has been validated and is a valid detector or topic.
         TODO: CHECK THIS - Always ensure that a topic in the label is in the "topic:<topic-name>" format.
 
-        # TODO: We currently only are tracking malicious-prompt and topics, 
+        # TODO: We currently only are tracking malicious-prompt and topics,
         # so adding labels for other expected detectors might cause issues.
         # If it does, we can filter them out here for now and stop filtering
         # them once we have full support for all detectors.
@@ -597,7 +580,7 @@ class AIGuardManager:
     # _process_prompt_guard_response is looking at what is detected and what is expected, and then updating the
     # efficacy tracker with the results.
     # is_injection here is the label - whether it is a malicious prompt or not.
-    # TODO: Need add_false_positive and add_false_negative methods to 
+    # TODO: Need add_false_positive and add_false_negative methods to
     # AIGuardManager.  Have it update fp and fn counts and labels (rather than doing that throughout this code)
     # , and also keep a collection of the TestCase objects that had false positives or false negatives.
     def report_call_results(
@@ -609,7 +592,7 @@ class AIGuardManager:
         if response is None:
             print(f"\n\t{DARK_YELLOW}Service failed with no response.{RESET}")
             return
-        
+
         if response.status_code != 200:
             # TODO: Where do we record the error?  I think it's already recored but check.
             print(f"\n\t{DARK_YELLOW}Service failed with status code: {response.status_code}.{RESET}")
@@ -634,7 +617,7 @@ class AIGuardManager:
             if self.service == "aidr":
                 print(f"\tguard_output:\n\t{formatted_json_str(guard_output)}")
             print(f"{RESET}")
-                
+
         if self.debug:
             print(f"\tResponse.status_code: {response.status_code}")
             print(f"\tResponse:\n{formatted_json_str(response.json())}{RESET}")
@@ -650,7 +633,7 @@ class AIGuardManager:
         #     {"detector": "topic", "details": {"detected": True, "data": {"topics": [{"topic": "negative-sentiment", "confidence": 1.0}]}}}]
         # ]
         detected_detectors = self.get_detected_with_detail(response.json())
-        # Also grab the raw detectors dict from the API response for label extraction        
+        # Also grab the raw detectors dict from the API response for label extraction
         raw_detectors = response.json().get("result", {}).get("detectors", {})
         if self.debug:
             print(f"\t{DARK_YELLOW}Detected Detectors: {formatted_json_str(detected_detectors)}{RESET}")
@@ -658,11 +641,11 @@ class AIGuardManager:
 
         self.update_detected_counts(detected_detectors)
 
-        # This will update the labels so that they contain whatever was in 
+        # This will update the labels so that they contain whatever was in
         # test.labels, but also whatever was in test.expected_detectors (union).
         self.update_test_labels_from_expected_detectors(test)
 
-        expected_detectors_labels = test.label 
+        expected_detectors_labels = test.label
         actual_detectors_labels = self.labels_from_actual_detectors(raw_detectors)
 
         fp_detected, fn_detected, fp_names, fn_names = (
@@ -702,7 +685,7 @@ class AIGuardManager:
         # The detected_detectors
         # The detected_topics
         # The detectors for which there were non-zero efficacy values
-        # These are all the things for which there is something to report, 
+        # These are all the things for which there is something to report,
         # So they are the detectors_to_report.
         non_zero_detectors = {
             *self.efficacy.per_detector_fn.keys(),
@@ -906,10 +889,10 @@ class AIGuardTests:
     tests: List[TestCase]
 
     def __init__(
-            self, 
-            settings: Settings, 
+            self,
+            settings: Settings,
             aig: AIGuardManager,
-            args, 
+            args,
             tests: Optional[List[TestCase]] = None):
         self.settings = settings if settings else Settings()
         self.aig = aig
@@ -987,7 +970,7 @@ class AIGuardTests:
             # Extract labels from the input line:
             # If the label is a dict with "kind" and "tag", combine them into the expected format,
             # for example "topic:toxicity" or "not-topic:toxicity".
-            # Otherwise, support simple list or string formats for legacy or simple test cases.            
+            # Otherwise, support simple list or string formats for legacy or simple test cases.
             label_field = test_data.get("label")
             labels = []
             if isinstance(label_field, dict) and "kind" in label_field and "tag" in label_field:
@@ -1066,9 +1049,9 @@ class AIGuardTests:
                 # Then need to apply synonyms to the labels based on benign_labels and malicious_prompt_labels
                 # from the command line arguments.
 
-                # Need to make labels be restricted to the detectors enabled in the overrides 
+                # Need to make labels be restricted to the detectors enabled in the overrides
                 # and the labels it started with, and the lables in the expected_detectors.
-                
+
                 # Apply synonyms to expected_labels for "malicious-prompt"
                 ## TODO: Use defauls.malicious_prompt_str in place of literal to avoid typos.
                 malicious_prompt_labels: List[str] = [l.strip().lower() for l in self.args.malicious_prompt_labels.split(",")] if self.args.malicious_prompt_labels else []
@@ -1107,7 +1090,7 @@ class AIGuardTests:
                 if testcase.settings and getattr(testcase.settings, "overrides", None):
                     test_case_enabled_detectors = testcase.settings.overrides.get_enabled_detector_labels() or []
                     # TODO: Check this attribute in ai_guard_test and use it for enabled detectors/topics if present.
-                    # TODO: Move setting of testcase.enabled_override_detectors into TestCase::__init__ 
+                    # TODO: Move setting of testcase.enabled_override_detectors into TestCase::__init__
                     testcase.enabled_override_detectors = test_case_enabled_detectors
                     effective_enabled_detectors = test_case_enabled_detectors
                 elif self.settings and getattr(self.settings, "overrides", None):
@@ -1119,7 +1102,7 @@ class AIGuardTests:
                     self.aig.enabled_topics = remove_topic_prefix(list({
                         t for t in effective_enabled_detectors if t.startswith(defaults.topic_prefix)
                     }))
-                    
+
                 # Use TestCase::ensure_valid_labels(effective_enabled_detectors) to ensure that the labels
                 # are valid and only those that are for enabled and supported detectors.
                 testcase.ensure_valid_labels(effective_enabled_detectors)
@@ -1160,7 +1143,7 @@ class AIGuardTests:
                     response = aig.ai_guard_test(test)
                     # TODO: Check promptlab behavior:
                     # Use the first user message (if available) for logging
-                    # prompt_text = next((msg["content"] for msg in messages if msg["role"] == "user"), "No User Message")                
+                    # prompt_text = next((msg["content"] for msg in messages if msg["role"] == "user"), "No User Message")
                     if response.status_code != 200 and aig.verbose:
                         print_response(test.messages, response)
                     else:
@@ -1200,7 +1183,7 @@ class AIGuardTests:
                 system_prompt = defaults.default_system_prompt
 
         if system_prompt and system_prompt != "":
-            self.settings.system_prompt = system_prompt 
+            self.settings.system_prompt = system_prompt
 
         recipe = args.recipe
 

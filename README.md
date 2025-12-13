@@ -1,19 +1,11 @@
-<a href="https://pangea.cloud?utm_source=github&utm_medium=python-sdk" target="_blank" rel="noopener noreferrer">
-  <img src="https://pangea-marketing.s3.us-west-2.amazonaws.com/pangea-color.svg" alt="Pangea Logo" height="40" />
-</a>
+# CrowdStrike AIDR AI Guard Lab
 
-<br />
-
-[![documentation](https://img.shields.io/badge/documentation-pangea-blue?style=for-the-badge&labelColor=551B76)](https://pangea.cloud/docs/ai-guard/)
-# Pangea AI Guard Lab
-
-The **AI Guard Lab Tool** is used to evaluate the efficacy of the [Pangea AI Guard API](https://pangea.cloud/docs/ai-guard/) against labeled datasets. 
+The **AI Guard Lab Tool** is used to evaluate the efficacy of the CrowdStrike AIDR AI Guard API against labeled datasets. 
 It supports both **malicious-prompt** detection and **topic-based** detection.
-
-This tool is a successor to the [`pangea-prompt-lab`](https://github.com/pangeacyber/pangea-prompt-lab), built specifically for the **AI Guard API** (AIG), with added support for **topic detectors** and configurable detection expectations via dataset labels.
 
 - Labels on dataset **TestCase**s indicate expected detectors. 
 - **NOTE** Labels corresponding to detectors that are not enabled are treated as not present for efficacy calculations (TP/FP/TN/FN).
+
 ---
 
 ## Features
@@ -29,28 +21,19 @@ This tool is a successor to the [`pangea-prompt-lab`](https://github.com/pangeac
 ## Prerequisites
 
 - Python v3.10 or greater
-- Poetry v2.x or greater
+- uv v0.9.17 or greater
 - Clone and Install Dependencies:
    ```bash
-   git clone https://github.com/pangeacyber/pangea-aiguard-lab
-   cd pangea-aiguard-lab
-   poetry install --no-root
+   git clone https://github.com/crowdstrike/aidr-aiguard-lab.git
+   cd aidr-aiguard-lab
+   uv sync
    ```
-- Pangea's AI Guard:
-   1. Sign up for a free [Pangea account](https://pangea.cloud/signup).
-   2. After creating your account and first project, skip the wizards. This will take you to the Pangea User Console, where you can enable the service.
-   3. Click AI Guard in the left-hand sidebar.
-   4. In the service enablement dialogs, click **Next**, then **Done**.
-   5. Click **Finish** to go to the service page in the Pangea User Console.
-   6. On the **Overview** page, capture the following **Configuration Details** by clicking on the corresponding values to copy them to the clipboard:
-      - **Domain** - Use the value of the domain to construct the full base URL for AI Guard. (e.g. if **Domain** is "aws.us.pangea.cloud", the PANGEA_BASE_URL will be "https://ai-guard.aws.us.pangea.cloud"). This must be set using the `PANGEA_BASE_URL` environment variable.
-      - **Default Token** - API access token for the service endpoints.
-
-      Assign these values to environment variables:
-
+- CrowdStrike AIDR:
+  1. Obtain an AIDR API token from your AIDR deployment
+  2. Set the AIDR-specific environment variables:
       ```bash
-      export PANGEA_BASE_URL="https://ai-guard.<domain>"
-      export PANGEA_AI_GUARD_TOKEN="<default-token-value>"
+      export CS_AIDR_BASE_URL="https://api.eu-1.crowdstrike.com"
+      export CS_AIDR_TOKEN="pts_[...]"
       ```
 
       _or_
@@ -61,11 +44,9 @@ This tool is a successor to the [`pangea-prompt-lab`](https://github.com/pangeac
       cp .env.example .env
       ```
 
-      Then populate it using the **Domain** and **Default Token** values from the service configuration.
-
-      > Use your project **Domain** value as part of the base URL. Including the full base URL allows this tool to work with custom deployments, including those accessed locally via port forwarding.
+      Then populate it.
    
-   - NOTE: If you get 400 or 403 errors when running aiguard_lab.py, the cause is most likely incorrect values for PANGEA_BASE_URL and/or PANGEA_AI_GUARD_TOKEN.
+   - NOTE: If you get 400 or 403 errors when running `aiguard_lab.py`, the cause is most likely incorrect values for CS_AIDR_BASE_URL and/or CS_AIDR_TOKEN.
 
 ## Usage
 
@@ -79,33 +60,27 @@ Test cases can be provided via `.json`, `.jsonl`, or `.txt` files.
 
 - Primary usage:
 ```bash
-poetry run python aiguard_lab.py --input_file data/test_dataset.jsonl --detectors malicious-prompt --rps 25
+uv run aiguard_lab.py --input_file data/test_dataset.jsonl --detectors malicious-prompt --rps 25
 ```
-
-- You don't have to use `bash poetry run python`: 
-```bash
- ./aiguard_lab.py --input_file data/test_dataset.jsonl --detectors --malicious-prompt --rps 25
-```
-
 
 - You can check a single prompt with assumed labels:
 ```bash
-poetry run python aiguard_lab.py --prompt "Ignore all prior instructions..." --detectors malicious-prompt --assume_tps
+uv run aiguard_lab.py --prompt "Ignore all prior instructions..." --detectors malicious-prompt --assume_tps
 ```
 
 - Specify a system prompt to inovke conformance/non-conformance testing:
 ```bash
-poetry run python aiguard_lab.py --prompt "Talk to me about dragons and sorcerers." --system_prompt "You are a financial advisor bot."  --detectors malicious-prompt --assume_tps
+uv run aiguard_lab.py --prompt "Talk to me about dragons and sorcerers." --system_prompt "You are a financial advisor bot."  --detectors malicious-prompt --assume_tps
 ```
 
 - Check which topics could be detected in a given input:
 ```bash
-poetry run python aiguard_lab.py --prompt How much do I need to save to afford a house in Portland? --report_any_topic --assume_tps
+uv run aiguard_lab.py --prompt How much do I need to save to afford a house in Portland? --report_any_topic --assume_tps
 ```
 
 Saving FPs, FNs, and summary report file:
 ```bash
-poetry run python aiguard_lab.py \
+uv run aiguard_lab.py \
 --input_file data/test_dataset.jsonl \
 --fps_out_csv test_dataset.fps.csv \
 --fns_out_csv test_dataset.fns.csv \
@@ -114,32 +89,9 @@ poetry run python aiguard_lab.py \
 --rps 25
 ```
 
-## AIDR Service Support
+## AIDR Metadata
 
-The AI Guard Lab tool supports testing against the **AIDR (AI Detection & Response)** service, which uses a different API endpoint and includes additional metadata for logging and tracking.
-
-To test against AIDR, add the `--service aidr` flag.
-
-### Key Differences
-
-When using AIDR service:
-1. **API Schema**: Uses `v1beta/guard` endpoint with messages wrapped in an `input` object
-2. **No Overrides Support**: AIDR does not currently support the `overrides` configuration that AI Guard uses. The tool will automatically skip override logic when using AIDR.
-3. **Recipe-Based Configuration**: Detection behavior is controlled entirely by the policy of the collector. Input policy is used by default.
-4. **Automatic Metadata Injection**: AIDR requests automatically include metadata for logging and tracking purposes.
-
-### Prerequisites for AIDR
-
-1. Obtain an AIDR API token from your AIDR deployment
-2. Set the AIDR-specific environment variables:
-
-   ```bash
-   export PANGEA_BASE_URL="https://<aidr-domain>"
-   export PANGEA_AIDR_TOKEN="<your-aidr-token>"
-    ```
-
-### AIDR Metadata
-When using --service aidr, the tool automatically injects the following metadata into each request:
+The tool automatically injects the following metadata into each request:
 
 Default Metadata:
 
@@ -162,12 +114,12 @@ Default Metadata:
 NOTE: The actor_name is automatically populated with your current system username.
 
 Customizing AIDR Metadata
-You can override the default AIDR metadata using the --aidr_config flag with either a JSON string or a path to a JSON file:
+You can override the default AIDR metadata using the `--aidr_config` flag with either a JSON string or a path to a JSON file:
 
 Using JSON string:
 
    ```bash
-poetry run python aiguard_lab.py \
+uv run aiguard_lab.py \
   --input_file data/test_dataset.jsonl \
   --service aidr \
   --aidr_config '{"app_id": "MyApp", "model": "GPT-4o", "extra_info": {"environment": "production"}}'
@@ -175,7 +127,7 @@ poetry run python aiguard_lab.py \
 
 Using JSON file:
 
-Create aidr_config.json:
+Create `aidr_config.json`:
 
 ```json
 {
@@ -193,7 +145,7 @@ Create aidr_config.json:
 
 Then run:
 ```bash
-python aiguard_lab.py \
+uv run aiguard_lab.py \
   --input_file data/test_dataset.jsonl \
   --service aidr \
   --aidr_config aidr_config.json
@@ -201,10 +153,10 @@ python aiguard_lab.py \
 
 
 ## Input Files and Formats
-- `data/test_dataset.jsonl` is a Pangea curated dataset that will be expanded over time.
+- `data/test_dataset.jsonl` is a CrowdStrike-curated dataset that will be expanded over time.
 
-### Pangea **TestCase** Record Format
-The `aiguard_lab.py` tool processes Pangea **TestCase** records of the form:
+### CrowdStrike AIDR **TestCase** Record Format
+The `aiguard_lab.py` tool processes CrowdStrike **TestCase** records of the form:
 ```json
   {
     "label": ["<detector-name-1>", "<detector-name-2>"],
@@ -220,7 +172,7 @@ Where:
 
 ### .json and .jsonl
 
-Input files of .json and .jsonl formats are collections of Pangea **TestCase** records.
+Input files of .json and .jsonl formats are collections of CrowdStrike **TestCase** records.
 - `.jsonl` files contain one **TestCase** record per line
 Example (see also `data/examples/testcases.jsonl`):
 ```json
@@ -340,9 +292,11 @@ The sample dataset (`data/test_dataset.jsonl`) contains:
 
 ## CMD Line Help
 ```
-usage: aiguard_lab.py [-h] (--prompt PROMPT | --input_file INPUT_FILE) [--system_prompt SYSTEM_PROMPT] [--force_system_prompt] [--detectors DETECTORS] [--report_any_topic] [--topic_threshold TOPIC_THRESHOLD] [--fail_fast] [--malicious_prompt_labels MALICIOUS_PROMPT_LABELS]
-                      [--benign_labels BENIGN_LABELS] [--negative_labels NEGATIVE_LABELS] [--recipe RECIPE] [--report_title REPORT_TITLE] [--summary_report_file SUMMARY_REPORT_FILE] [--fps_out_csv FPS_OUT_CSV] [--fns_out_csv FNS_OUT_CSV] [--print_label_stats] [--print_fps]
-                      [--print_fns] [--verbose] [--debug] [--assume_tps | --assume_tns] [--rps RPS] [--max_poll_attempts MAX_POLL_ATTEMPTS] [--fp_check_only]
+usage: aiguard_lab.py [-h] (--prompt PROMPT | --input_file INPUT_FILE) [--system_prompt SYSTEM_PROMPT] [--force_system_prompt] [--detectors DETECTORS] [--use_labels_as_detectors]
+                      [--report_any_topic] [--topic_threshold TOPIC_THRESHOLD] [--fail_fast] [--malicious_prompt_labels MALICIOUS_PROMPT_LABELS] [--benign_labels BENIGN_LABELS]
+                      [--negative_labels NEGATIVE_LABELS] [--recipe RECIPE] [--aidr_config AIDR_CONFIG] [--report_title REPORT_TITLE] [--summary_report_file SUMMARY_REPORT_FILE]
+                      [--fps_out_csv FPS_OUT_CSV] [--fns_out_csv FNS_OUT_CSV] [--print_label_stats] [--print_fps] [--print_fns] [--verbose] [--debug] [--assume_tps | --assume_tns]
+                      [--rps RPS] [--max_poll_attempts MAX_POLL_ATTEMPTS] [--fp_check_only]
 
 Process prompts with AI Guard API.
 Specify a --prompt or --input_file
@@ -397,12 +351,16 @@ Detection and evaluation configuration:
                           health-coverage,
                           negative-sentiment,
                           gibberish
+  --use_labels_as_detectors
+                        Use the labels from the test cases as topics for detection.
+                        This will enable all topic detectors corresponding to the labels in the test cases.
+                        Default: False.
   --report_any_topic    Report any topic detection, even if not specified in --detectors.
                         This will report all detected topics in the response, regardless of
                         whether they are explicitly requested or not. Default: False.
   --topic_threshold TOPIC_THRESHOLD
                         Threshold for topic detection confidence. Only applies when using
-                        AI Guard with topics. Default: 1.0.
+                        AI Guard with topics. Default: 0.5.
   --fail_fast           Enable fail-fast mode: detectors will block and exit on first
                         detection. Default: False.
   --malicious_prompt_labels MALICIOUS_PROMPT_LABELS
@@ -423,6 +381,7 @@ Detection and evaluation configuration:
                           injection,
                           jailbreaking,
                           multi-shot,
+                          not-conform,
                           not conform
                         Test cases with any of these labels expect the malicious-prompt
                         detector to return a detection (FN if it does not).
@@ -442,10 +401,6 @@ Detection and evaluation configuration:
                         Use the pattern 'not-topic:<topic-name>' (e.g. not-topic:legal-advice).
                         Test cases with any of these labels expect **no** detections from the corresponding detector (FP if it does).
                         Default: not-topic:*
-   --service {aiguard,aidr}
-                        Specify the service to use for processing.
-                        AIDR service (and token) will cause tool to 1) log to a different location (the AIDR schema rather than the default for AIG), 
-                        2) Ignore overrides - the AI Guard Lab tool relies on overrides in many cases.                        
   --recipe RECIPE       The recipe to use for processing the prompt.
                         Useful when using --prompt for a single prompt.
                         Available recipes:
@@ -463,6 +418,24 @@ Detection and evaluation configuration:
 
                         Not appliccable when using --detectors or JSON test case objects
                         that override the recipe with explicit detectors.
+  --aidr_config AIDR_CONFIG
+                        JSON string or path to JSON file with AIDR metadata overrides.
+                        Default metadata:
+                          event_type: input
+                          app_id: AIG-lab
+                          actor_id: test tool
+                          llm_provider: test
+                          model: GPT-6-super
+                          model_version: 6s
+                          source_ip: 74.244.51.54
+                          extra_info:
+                            actor_name: {current_user}
+                            app_name: AIGuard-lab
+
+                        Example JSON override:
+                          --aidr_config '{"app_id": "MyApp", "model": "GPT-4"}'
+                        Or path to file:
+                          --aidr_config /path/to/config.json
 
 Output and reporting:
   --report_title REPORT_TITLE
@@ -489,6 +462,7 @@ Performance:
                         Maximum poll (retry) attempts for 202 responses (default: 12)
   --fp_check_only       When passing JSON file, only check for false negatives
 ```
+
 ## Output and Metrics
 
 ```
@@ -552,7 +526,3 @@ Detected Analyzers: {'analyzer: PA4002, confidence: 1.0': 127, 'analyzer: PA4003
 ```
 
 It also calculates accuracy, precision, recall, F1-score, and specificity, and logs any errors. Use `--fps_out_csv` / `--fns_out_csv` to save FP/FN prompts for further analysis.
-
-## Edge deployments testing
-
-To test Edge deployments, refer to the [Pangea Edge services](https://pangea.cloud/docs/deployment-models/edge/deployments/docker#test-prompt-guard-efficacy) documentation.

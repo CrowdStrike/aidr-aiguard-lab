@@ -1,11 +1,6 @@
-#!/usr/bin/env -S poetry run python
-# Copyright 2021 Pangea Cyber Corporation
-# Author: Pangea Cyber Corporation
-
-from email.policy import default
 from manager.aiguard_manager import AIGuardManager, AIGuardTests
 from config.settings import Settings
-from defaults import defaults   
+from defaults import defaults
 import argparse
 
 
@@ -100,7 +95,7 @@ def main():
             "Use the labels from the test cases as topics for detection.\n"
             "This will enable all topic detectors corresponding to the labels in the test cases.\n"
             "Default: False."
-        ),  
+        ),
     )
     processing_group.add_argument(
         "--report_any_topic",
@@ -134,7 +129,7 @@ def main():
         default=defaults.malicious_prompt_labels_str,
         help=(
             "Comma separated list of labels indicating a malicious prompt.\n"
-            + "Default:\n  " 
+            + "Default:\n  "
             + defaults.malicious_prompt_labels_str.replace(', ', ',\n  ') + "\n"
             + "Test cases with any of these labels expect the malicious-prompt\n"
             + "detector to return a detection (FN if it does not).\n"
@@ -147,7 +142,7 @@ def main():
         default=defaults.benign_labels_str,
         help=(
             "Comma separated list of labels indicating a benign prompt.\n"
-            + "Default:\n  " 
+            + "Default:\n  "
             + defaults.benign_labels_str.replace(', ', ',\n  ') + "\n"
             + "Test cases with any of these labels expect no detections \n"
             + "from any detector (FP if it does).\n"
@@ -169,7 +164,7 @@ def main():
     processing_group.add_argument(
         "--recipe",
         type=str,
-        help=( 
+        help=(
             "The recipe to use for processing the prompt.\n"
             "Useful when using --prompt for a single prompt.\n"
             "Available recipes:\n"
@@ -182,17 +177,6 @@ def main():
             "that override the recipe with explicit detectors."
         ),
         default=defaults.default_recipe,
-    )
-    processing_group.add_argument(
-        "--service",
-        default="aidr",
-        choices=("aiguard", "aidr"),
-        type=str,
-        help=(
-            "Specify the service to use for processing.\n"
-            "AIDR service (and token) will cause tool to 1) log to a different location (the AIDR schema rather than the default for AIG), \n"
-            "2) Ignore overrides - the AI Guard Lab tool relies on overrides in many cases.  "
-        ),
     )
     processing_group.add_argument(
         "--aidr_config",
@@ -300,7 +284,7 @@ def main():
         help="When passing JSON file, only check for false negatives",
         default=False,
     )
-    
+
     args = parser.parse_args()
 
     recipe = args.recipe

@@ -1,6 +1,3 @@
-# Copyright 2021 Pangea Cyber Corporation
-# Author: Pangea Cyber Corporation
-
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict
 from config.settings import Settings  # Assuming Settings is already defined in config/settings.py
@@ -170,7 +167,7 @@ class ExpectedDetectors:
 
     def get_expected_detector_labels(self) -> list[str]:
         """
-        Using label[] accomplishes almost the same thing and is much easier, 
+        Using label[] accomplishes almost the same thing and is much easier,
         but this allows full specification of expected detection result details.
 
         Converts the expected detector objects into an easily consumable list of labels.

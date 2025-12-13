@@ -1,11 +1,8 @@
-#!/usr/bin/env -S poetry run python
-# Copyright 2021 Pangea Cyber Corporation
-# Author: Pangea Cyber Corporation
-
 import os
 import sys
 import time
 import json
+from typing import Literal
 import requests
 import getpass
 import urllib3
@@ -87,7 +84,7 @@ def merge_aidr_metadata(data, aidr_config=None):
     return data
 
 
-def pangea_post_api(service, endpoint, data, skip_cache=False, token=ai_guard_token, base_url=base_url,
+def pangea_post_api(service: Literal["aiguard", "aidr"], endpoint: str, data, skip_cache=False, token=ai_guard_token, base_url=base_url,
                     aidr_config=None):
     """
     Post to Pangea API with optional AIDR metadata injection.
@@ -124,7 +121,7 @@ def pangea_post_api(service, endpoint, data, skip_cache=False, token=ai_guard_to
         return create_error_response(400, f"Bad Request: {e}")
 
 
-def pangea_get_api(endpoint, token=ai_guard_token, base_url=base_url):
+def pangea_get_api(endpoint: str, token: str = ai_guard_token, base_url: str = base_url):
     """GET request to Pangea API (used for polling)."""
     try:
         url = urljoin(base_url, endpoint)

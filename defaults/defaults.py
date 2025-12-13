@@ -1,6 +1,3 @@
-# Copyright 2021 Pangea Cyber Corporation
-# Author: Pangea Cyber Corporation
-
 malicious_prompt_str = "malicious-prompt"
 not_malicious_prompt_str = "not-malicious-prompt"
 benign_str = "benign"
@@ -29,7 +26,7 @@ not_topic_prefix = "not-topic:"
 
 # Need to be consistent with how the code handles detector names and topic names.
 # Want to allow --detectors to include both detector names and topic names, and to allow
-# topic names with or without the "topic:" prefix. 
+# topic names with or without the "topic:" prefix.
 # The code should allow both formats, but intenally always normalize to the "topic:<topic-name>" format.
 # The valid_topics needs to be without the "topic:" prefix for use in the Overrides for the Topic detector.
 valid_detectors = [
@@ -46,7 +43,7 @@ valid_detectors = [
         # NOTE: EXCEPT that we use "malicious-prompt" instead of "prompt-injection" for the malicious prompt detector.
         # NOTE: The AI Guard API Overrides are out of date - many were changed to topics and API is not yet updated.
         # NOTE: As the overrides parameter names change, need to update the detector names here.
-        # NOTE: And the TestCase class and associated other clasees. 
+        # NOTE: And the TestCase class and associated other clasees.
         ]
 # Add topic detectors prefixed with "topic:" to the valid detectors
 # We also accept just the topic name without "topic:" prefix
@@ -125,9 +122,8 @@ default_system_prompt = (
 default_rps = 15
 max_rps = 100
 max_poll_attempts = 12
-ai_guard_token = "PANGEA_AI_GUARD_TOKEN"
-pangea_domain = "PANGEA_DOMAIN"
-pangea_base_url = "PANGEA_BASE_URL"
+ai_guard_token = "CS_AIDR_TOKEN"
+pangea_base_url = "CS_AIDR_BASE_URL"
 connection_timeout = 12
 read_timeout = 60
 ai_guard_recipe = default_recipe

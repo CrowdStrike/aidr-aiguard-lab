@@ -1,6 +1,3 @@
-# Copyright 2021 Pangea Cyber Corporation
-# Author: Pangea Cyber Corporation
-
 # ANSI escape codes for colors
 GREEN = "\033[92m"
 BRIGHT_GREEN = "\033[1;92m"

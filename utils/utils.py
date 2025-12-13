@@ -1,6 +1,3 @@
-# Copyright 2021 Pangea Cyber Corporation
-# Author: Pangea Cyber Corporation
-
 import time
 import json
 import threading

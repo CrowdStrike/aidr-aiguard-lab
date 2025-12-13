@@ -1,12 +1,8 @@
-# Copyright 2021 Pangea Cyber Corporation
-# Author: Pangea Cyber Corporation
-
 from dataclasses import dataclass
 from typing import Optional
 from .detectors import (
     CodeDetection,
     Competitors,
-    # CustomEntity
     LanguageDetection,
     MaliciousEntity,
     PIIEntity,
