@@ -1,32 +1,30 @@
-from manager.aiguard_manager import AIGuardManager, AIGuardTests
-from config.settings import Settings
-from defaults import defaults
 import argparse
 
+from config.settings import Settings
+from defaults import defaults
+from manager.aiguard_manager import AIGuardManager, AIGuardTests
 
-def determine_injection(labels):
+
+def determine_injection(labels: list[str]) -> bool:
     """Heuristic to decide if this is injection or not based on labels."""
     benign_labels = {"benign_auto", "benign"}
-    if any(label in benign_labels for label in labels):
-        return False
-    else:
-        return True  # Assume injection if not labeled as benign
+    return not any(label in benign_labels for label in labels)  # Assume injection if not labeled as benign
+
 
 def bounded_int(min_val, max_val):
     def checker(val):
         ival = int(val)
         if ival < min_val or ival > max_val:
-            raise argparse.ArgumentTypeError(
-                f"Value must be between {min_val} and {max_val}"
-            )
+            raise argparse.ArgumentTypeError(f"Value must be between {min_val} and {max_val}")
         return ival
+
     return checker
+
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Process prompts with AI Guard API.\n"
-        "Specify a --prompt or --input_file",
-        formatter_class=argparse.RawTextHelpFormatter
+        description="Process prompts with AI Guard API.\nSpecify a --prompt or --input_file",
+        formatter_class=argparse.RawTextHelpFormatter,
     )
 
     input_group = parser.add_argument_group("Input arguments")
@@ -40,19 +38,19 @@ def main():
             ".txt    One prompt per line.\n"
             ".jsonl  JSON Lines format, each line is test case with labels and\n"
             "        messages array:\n"
-            "        {\"label\": [\"malicious\"], \"messages\": [{\"role\": \"user\", "
-            "\"content\": \"prompt\"}]}\n"
+            '        {"label": ["malicious"], "messages": [{"role": "user", '
+            '"content": "prompt"}]}\n'
             ".json   JSON file with a tests array of test cases, each labels and a \n"
             "        messages array:\n"
-            "        {\"tests\": [{\"label\": [\"malicious\"], \"messages\": [{\"role\": "
-            "\"user\", \"content\": \"prompt\"}]}]}\n"
+            '        {"tests": [{"label": ["malicious"], "messages": [{"role": '
+            '"user", "content": "prompt"}]}]}\n'
             "        Supports optional global settings that provide defaults for all\n"
             "        tests.\n"
             "        Each test case can specify its own settings to override global \n"
             "        ones.\n"
             "        Each test case can specify expected_detectors in addition to or \n"
             "        as an alternative to labels.\n"
-## TODO: Document .csv format and suppot
+            ## TODO: Document .csv format and suppot
         ),
     )
 
@@ -71,7 +69,7 @@ def main():
             "(default: False).\n"
             "NOTE: AI Guard conformance/non-conformance checks are based on a \n"
             "      system prompt and only happen if one is present.\n"
-        )
+        ),
     )
     processing_group.add_argument(
         "--detectors",
@@ -80,12 +78,14 @@ def main():
         help=(
             "Comma separated list of detectors to use.\n"
             + "Default:\n  "
-            + defaults.default_detectors_str.replace(', ', ',\n  ') + "\n"
+            + defaults.default_detectors_str.replace(", ", ",\n  ")
+            + "\n"
             + "Available detectors:\n  malicious-prompt, topc:<topic-name>\n"
             # + defaults.valid_detectors_str.replace(', ', ',\n  ') + "\n"
             + "Use 'topic:<topic-name>' or just '<topic-name>' for topic detectors.\n"
             + "Available topic names:\n  "
-            + defaults.valid_topics_str.replace(', ', ',\n  ') + "\n"
+            + defaults.valid_topics_str.replace(", ", ",\n  ")
+            + "\n"
         ),
     )
     processing_group.add_argument(
@@ -118,10 +118,7 @@ def main():
     processing_group.add_argument(
         "--fail_fast",
         action="store_true",
-        help=(
-            "Enable fail-fast mode: detectors will block and exit on first\n"
-            "detection. Default: False.\n"
-        ),
+        help=("Enable fail-fast mode: detectors will block and exit on first\ndetection. Default: False.\n"),
     )
     processing_group.add_argument(
         "--malicious_prompt_labels",
@@ -130,7 +127,8 @@ def main():
         help=(
             "Comma separated list of labels indicating a malicious prompt.\n"
             + "Default:\n  "
-            + defaults.malicious_prompt_labels_str.replace(', ', ',\n  ') + "\n"
+            + defaults.malicious_prompt_labels_str.replace(", ", ",\n  ")
+            + "\n"
             + "Test cases with any of these labels expect the malicious-prompt\n"
             + "detector to return a detection (FN if it does not).\n"
             + "Must not overlap with --benign_labels."
@@ -143,7 +141,8 @@ def main():
         help=(
             "Comma separated list of labels indicating a benign prompt.\n"
             + "Default:\n  "
-            + defaults.benign_labels_str.replace(', ', ',\n  ') + "\n"
+            + defaults.benign_labels_str.replace(", ", ",\n  ")
+            + "\n"
             + "Test cases with any of these labels expect no detections \n"
             + "from any detector (FP if it does).\n"
             + "Must not overlap with --malicious_prompt_labels."
@@ -169,9 +168,9 @@ def main():
             "Useful when using --prompt for a single prompt.\n"
             "Available recipes:\n"
             "  all\n"
-            + ''.join([f"  {r}\n" for r in defaults.default_recipes]) +
-            f"Default: {defaults.default_recipe if defaults.default_recipe else 'None'}\n"
-            "Use \"all\" to iteratively apply all recipes to the prompt\n"
+            + "".join([f"  {r}\n" for r in defaults.default_recipes])
+            + f"Default: {defaults.default_recipe if defaults.default_recipe else 'None'}\n"
+            'Use "all" to iteratively apply all recipes to the prompt\n'
             "(only supported for --prompt).\n\n"
             "Not appliccable when using --detectors or JSON test case objects\n"
             "that override the recipe with explicit detectors."
@@ -203,54 +202,23 @@ def main():
     )
 
     output_group = parser.add_argument_group("Output and reporting")
-    output_group.add_argument(
-        "--report_title",
-        type=str,
-        default=None,
-        help="Optional title in report summary"
-    )
-    output_group.add_argument(
-        "--summary_report_file",
-        type=str,
-        default=None,
-        help="Optional summary report file name"
-    )
-    output_group.add_argument(
-        "--fps_out_csv",
-        type=str,
-        help="Output CSV for false positives"
-    )
-    output_group.add_argument(
-        "--fns_out_csv",
-        type=str,
-        help="Output CSV for false negatives"
-    )
+    output_group.add_argument("--report_title", type=str, default=None, help="Optional title in report summary")
+    output_group.add_argument("--summary_report_file", type=str, default=None, help="Optional summary report file name")
+    output_group.add_argument("--fps_out_csv", type=str, help="Output CSV for false positives")
+    output_group.add_argument("--fns_out_csv", type=str, help="Output CSV for false negatives")
     output_group.add_argument(
         "--print_label_stats",
         action="store_true",
         help="Display per-label stats (FP/FN counts)",
     )
-    output_group.add_argument(
-        "--print_fps",
-        action="store_true",
-        help="Print false positives after summary"
-    )
-    output_group.add_argument(
-        "--print_fns",
-        action="store_true",
-        help="Print false negatives after summary"
-    )
+    output_group.add_argument("--print_fps", action="store_true", help="Print false positives after summary")
+    output_group.add_argument("--print_fns", action="store_true", help="Print false negatives after summary")
     output_group.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose output (FPs, FNs as they occur, full errors).",
     )
-    output_group.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug output (default: False)"
-    )
-
+    output_group.add_argument("--debug", action="store_true", help="Enable debug output (default: False)")
 
     assumption_group = parser.add_argument_group("Assumptions for plain text prompts")
     group_tp_tn = assumption_group.add_mutually_exclusive_group(required=False)

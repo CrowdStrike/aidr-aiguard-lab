@@ -1,14 +1,13 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class CodeDetection:
-    disabled: Optional[bool] = None
-    action: Optional[str] = None
+    disabled: bool | None = None
+    action: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "CodeDetection":
+    def from_dict(cls, data: dict | None) -> "CodeDetection":
         if not data:
             return cls()
         return cls(
@@ -19,12 +18,12 @@ class CodeDetection:
 
 @dataclass
 class Competitors:
-    disabled: Optional[bool] = None
-    action: Optional[str] = None
-    competitors: Optional[list[str]] = None
+    disabled: bool | None = None
+    action: str | None = None
+    competitors: list[str] | None = None
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "Competitors":
+    def from_dict(cls, data: dict | None) -> "Competitors":
         if not data:
             return cls()
         return cls(**data)
@@ -32,12 +31,12 @@ class Competitors:
 
 @dataclass
 class LanguageDetection:
-    disabled: Optional[bool] = None
-    action: Optional[str] = None
-    languages: Optional[list[str]] = None
+    disabled: bool | None = None
+    action: str | None = None
+    languages: list[str] | None = None
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "LanguageDetection":
+    def from_dict(cls, data: dict | None) -> "LanguageDetection":
         if not data:
             return cls()
         return cls(**data)
@@ -45,13 +44,13 @@ class LanguageDetection:
 
 @dataclass
 class MaliciousEntity:
-    disabled: Optional[bool] = None
-    url: Optional[str] = None
-    ip_address: Optional[str] = None
-    domain: Optional[str] = None
+    disabled: bool | None = None
+    url: str | None = None
+    ip_address: str | None = None
+    domain: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "MaliciousEntity":
+    def from_dict(cls, data: dict | None) -> "MaliciousEntity":
         if not data:
             return cls()
         return cls(**data)
@@ -59,35 +58,35 @@ class MaliciousEntity:
 
 @dataclass
 class PIIEntity:
-    disabled: Optional[bool] = None
-    email_address: Optional[str] = None
-    nrp: Optional[str] = None
-    location: Optional[str] = None
-    person: Optional[str] = None
-    phone_number: Optional[str] = None
-    date_time: Optional[str] = None
-    ip_address: Optional[str] = None
-    url: Optional[str] = None
-    money: Optional[str] = None
-    credit_card: Optional[str] = None
-    crypto: Optional[str] = None
-    iban_code: Optional[str] = None
-    us_bank_number: Optional[str] = None
-    nif: Optional[str] = None
-    fin_nric: Optional[str] = None
-    au_abn: Optional[str] = None
-    au_acn: Optional[str] = None
-    au_tfn: Optional[str] = None
-    medical_license: Optional[str] = None
-    uk_nhs: Optional[str] = None
-    au_medicare: Optional[str] = None
-    us_drivers_license: Optional[str] = None
-    us_itin: Optional[str] = None
-    us_passport: Optional[str] = None
-    us_ssn: Optional[str] = None
+    disabled: bool | None = None
+    email_address: str | None = None
+    nrp: str | None = None
+    location: str | None = None
+    person: str | None = None
+    phone_number: str | None = None
+    date_time: str | None = None
+    ip_address: str | None = None
+    url: str | None = None
+    money: str | None = None
+    credit_card: str | None = None
+    crypto: str | None = None
+    iban_code: str | None = None
+    us_bank_number: str | None = None
+    nif: str | None = None
+    fin_nric: str | None = None
+    au_abn: str | None = None
+    au_acn: str | None = None
+    au_tfn: str | None = None
+    medical_license: str | None = None
+    uk_nhs: str | None = None
+    au_medicare: str | None = None
+    us_drivers_license: str | None = None
+    us_itin: str | None = None
+    us_passport: str | None = None
+    us_ssn: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "PIIEntity":
+    def from_dict(cls, data: dict | None) -> "PIIEntity":
         if not data:
             return cls()
         return cls(**data)
@@ -95,11 +94,11 @@ class PIIEntity:
 
 @dataclass
 class PromptInjection:
-    disabled: Optional[bool] = None
-    action: Optional[str] = None
+    disabled: bool | None = None
+    action: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "PromptInjection":
+    def from_dict(cls, data: dict | None) -> "PromptInjection":
         if not data:
             return cls()
         return cls(**data)
@@ -107,37 +106,37 @@ class PromptInjection:
 
 @dataclass
 class SecretsDetection:
-    disabled: Optional[bool] = None
-    slack_token: Optional[str] = None
-    ssh_dsa_private_key: Optional[str] = None
-    ssh_ec_private_key: Optional[str] = None
-    pgp_private_key_block: Optional[str] = None
-    amazon_aws_access_key_id: Optional[str] = None
-    amazon_aws_secret_access_key: Optional[str] = None
-    amazon_mws_auth_token: Optional[str] = None
-    facebook_access_token: Optional[str] = None
-    github_access_token: Optional[str] = None
-    jwt_token: Optional[str] = None
-    google_api_key: Optional[str] = None
-    google_cloud_platform_api_key: Optional[str] = None
-    google_drive_api_key: Optional[str] = None
-    google_cloud_platform_service_account: Optional[str] = None
-    google_gmail_api_key: Optional[str] = None
-    youtube_api_key: Optional[str] = None
-    mailchimp_api_key: Optional[str] = None
-    mailgun_api_key: Optional[str] = None
-    basic_auth: Optional[str] = None
-    picatic_api_key: Optional[str] = None
-    slack_webhook: Optional[str] = None
-    stripe_api_key: Optional[str] = None
-    stripe_restricted_api_key: Optional[str] = None
-    square_access_token: Optional[str] = None
-    square_oauth_secret: Optional[str] = None
-    twilio_api_key: Optional[str] = None
-    pangea_token: Optional[str] = None
+    disabled: bool | None = None
+    slack_token: str | None = None
+    ssh_dsa_private_key: str | None = None
+    ssh_ec_private_key: str | None = None
+    pgp_private_key_block: str | None = None
+    amazon_aws_access_key_id: str | None = None
+    amazon_aws_secret_access_key: str | None = None
+    amazon_mws_auth_token: str | None = None
+    facebook_access_token: str | None = None
+    github_access_token: str | None = None
+    jwt_token: str | None = None
+    google_api_key: str | None = None
+    google_cloud_platform_api_key: str | None = None
+    google_drive_api_key: str | None = None
+    google_cloud_platform_service_account: str | None = None
+    google_gmail_api_key: str | None = None
+    youtube_api_key: str | None = None
+    mailchimp_api_key: str | None = None
+    mailgun_api_key: str | None = None
+    basic_auth: str | None = None
+    picatic_api_key: str | None = None
+    slack_webhook: str | None = None
+    stripe_api_key: str | None = None
+    stripe_restricted_api_key: str | None = None
+    square_access_token: str | None = None
+    square_oauth_secret: str | None = None
+    twilio_api_key: str | None = None
+    pangea_token: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "SecretsDetection":
+    def from_dict(cls, data: dict | None) -> "SecretsDetection":
         if not data:
             return cls()
         return cls(**data)
@@ -145,13 +144,13 @@ class SecretsDetection:
 
 @dataclass
 class Topic:
-    disabled: Optional[bool] = None
-    action: Optional[str] = None
-    threshold: Optional[float] = None
-    topics: Optional[str] = None
+    disabled: bool | None = None
+    action: str | None = None
+    threshold: float | None = None
+    topics: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "Topic":
+    def from_dict(cls, data: dict | None) -> "Topic":
         if not data:
             return cls()
         return cls(**data)

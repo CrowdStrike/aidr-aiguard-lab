@@ -16,5 +16,27 @@ dependencies = [
     "tzlocal ==5.3.1",
 ]
 
+[dependency-groups]
+dev = [
+    "ruff ==0.15.0",
+]
+
 [tool.uv]
 package = false
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",   # isort
+    "PTH", # flake8-use-pathlib
+    "SIM", # flake8-simplify
+    "TC",  # flake8-type-checking
+    "UP",  # pyupgrade
+]
+ignore = ["E501"]
+flake8-type-checking.runtime-evaluated-base-classes = ["pydantic.BaseModel"]

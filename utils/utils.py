@@ -1,11 +1,13 @@
-import time
+from __future__ import annotations
+
 import json
 import threading
+import time
 from collections import deque
 from datetime import datetime
-from typing import List, Dict
-from utils.colors import DARK_RED, DARK_YELLOW, GREEN, RESET
+
 from defaults import defaults
+from utils.colors import DARK_RED, DARK_YELLOW, RESET
 
 
 def remove_topic_prefix(labels: list[str]) -> list[str]:
@@ -13,7 +15,10 @@ def remove_topic_prefix(labels: list[str]) -> list[str]:
     Remove the 'topic:' prefix from a list of labels.
     If a label starts with 'topic:', it will be stripped of that prefix.
     """
-    return [label[len(defaults.topic_prefix):] if label.startswith(defaults.topic_prefix) else label for label in labels]
+    return [
+        label[len(defaults.topic_prefix) :] if label.startswith(defaults.topic_prefix) else label for label in labels
+    ]
+
 
 # Helper function to normalize topics and detectors
 def normalize_topics_and_detectors(
@@ -74,11 +79,7 @@ def apply_synonyms(labels, synonyms, replacement):
     if isinstance(labels, str):
         labels = [labels]
 
-    return list(set(
-        replacement if label in synonyms else label
-        for label in labels
-        if isinstance(label, str)
-    ))
+    return list(set(replacement if label in synonyms else label for label in labels if isinstance(label, str)))
 
 
 def formatted_json_str(json_data: dict) -> str:
@@ -109,7 +110,7 @@ def get_duration(response, verbose=False):
         return 0
 
 
-def print_response(messages: List[Dict[str, str]], response, result_only=False):
+def print_response(messages: list[dict[str, str]], response, result_only=False):
     """Utility to neatly print the API response."""
     try:
         if response is None:
@@ -160,6 +161,7 @@ def unescape_and_unquote(value):
 # Shared state: one bucket per requested RPS value
 _RATE_LIMITER_STATE: dict[float, dict[str, object]] = {}
 
+
 def rate_limited(max_per_second: float):
     """
     Thread‑safe decorator that enforces a *global* requests‑per‑second cap.
@@ -177,15 +179,13 @@ def rate_limited(max_per_second: float):
         return lambda f: f  # no limit requested
 
     window = 1.0  # sliding window in seconds
-    state = _RATE_LIMITER_STATE.setdefault(
-        max_per_second,
-        {"lock": threading.Lock(), "calls": deque()}
-    )
+    state = _RATE_LIMITER_STATE.setdefault(max_per_second, {"lock": threading.Lock(), "calls": deque()})
     lock: threading.Lock = state["lock"]
     call_times: deque = state["calls"]
 
     def decorator(fn):
         import functools
+
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             while True:
@@ -202,5 +202,7 @@ def rate_limited(max_per_second: float):
                 if sleep_for > 0:
                     time.sleep(sleep_for)
             return fn(*args, **kwargs)
+
         return wrapper
+
     return decorator

@@ -1,36 +1,41 @@
-import sys
-import json
+from __future__ import annotations
+
 import csv
-from datetime import datetime
-from tzlocal import get_localzone
+import json
+import sys
 import threading
 import time
-
-
 from collections import Counter, defaultdict
-from typing import List, Dict, TypedDict
-from requests.models import Response
+from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, TypedDict
 
-from testcase.testcase import TestCase
+from tzlocal import get_localzone
 
+from defaults import defaults
+from utils.colors import (
+    BRIGHT_GREEN,
+    DARK_GREEN,
+    DARK_RED,
+    DARK_YELLOW,
+    GREEN,
+    RED,
+    RESET,
+)
 from utils.utils import (
     apply_synonyms,
     formatted_json_str,
 )
-from utils.colors import (
-    RED,
-    DARK_RED,
-    DARK_YELLOW,
-    GREEN,
-    DARK_GREEN,
-    BRIGHT_GREEN,
-    RESET,
-)
-from defaults import defaults
+
+if TYPE_CHECKING:
+    from requests.models import Response
+
+    from testcase.testcase import TestCase
 
 
 class ErrorRequestResponse:
     """Container for storing error request and response pairs."""
+
     def __init__(self, request_id: str, request_data: dict, response: Response):
         self.request_id = request_id  # Request ID from the API call
         self.request_data = request_data  # JSON request data
@@ -39,21 +44,19 @@ class ErrorRequestResponse:
 
 class EfficacyTracker:
     class FailedTestCase:
-        def __init__(self,
-                     test: TestCase,
-                     expected_label: str = "",
-                     detector_seen: str = "",
-                     detector_not_seen: str = ""):
+        def __init__(
+            self, test: TestCase, expected_label: str = "", detector_seen: str = "", detector_not_seen: str = ""
+        ):
             self.test: TestCase = test
             self.expected_label: str = expected_label
             self.detector_seen: str = detector_seen
             self.detector_not_seen: str = detector_not_seen
 
     def __init__(
-            self,
-            args=None,
-            keep_tp_and_tn_tests: bool = False # whether to keep copies of TP and TN test case objs for reporting later
-            ):
+        self,
+        args=None,
+        keep_tp_and_tn_tests: bool = False,  # whether to keep copies of TP and TN test case objs for reporting later
+    ):
         self.start_time = time.time()
         self.end_time = None
         self.args = args
@@ -101,29 +104,17 @@ class EfficacyTracker:
         self.errors: Counter = Counter()
         self.blocked = 0
 
-    def add_false_positive(
-        self,
-        test: TestCase,
-        detector_seen: str,
-        expected_label: str
-    ):
+    def add_false_positive(self, test: TestCase, detector_seen: str, expected_label: str):
         """
         Add a test case to the false positives collection.
         This is used to track test cases where no detection was expected
         for the given detector, but detection was seen.
         """
         with self._lock:
-            duplicate = any(
-                fp.test == test and fp.detector_seen == detector_seen
-                for fp in self.false_positives
-            )
+            duplicate = any(fp.test == test and fp.detector_seen == detector_seen for fp in self.false_positives)
             if not duplicate:
                 self.false_positives.append(
-                    EfficacyTracker.FailedTestCase(
-                        test,
-                        expected_label=expected_label,
-                        detector_seen=detector_seen
-                    )
+                    EfficacyTracker.FailedTestCase(test, expected_label=expected_label, detector_seen=detector_seen)
                 )
                 # Increment counts only for a truly new FP
                 self.fp_count += 1
@@ -131,19 +122,11 @@ class EfficacyTracker:
                 self.label_stats[detector_seen]["FP"] += 1
 
         if self.verbose:
-            index = test.index if hasattr(test, 'index') else "unknown"
+            index = test.index if hasattr(test, "index") else "unknown"
             print(f"{DARK_RED}Test:{index}:FP: expected_label '{expected_label}' but detected '{detector_seen}'")
-            print(
-                f"\t{DARK_YELLOW}Messages:\n"
-                f"{DARK_RED}{formatted_json_str(test.messages[:3])}{RESET}"
-            )
+            print(f"\t{DARK_YELLOW}Messages:\n{DARK_RED}{formatted_json_str(test.messages[:3])}{RESET}")
 
-    def add_true_negative(
-        self,
-        test: TestCase,
-        detector_not_seen: str,
-        expected_label: str = "benign"
-    ):
+    def add_true_negative(self, test: TestCase, detector_not_seen: str, expected_label: str = "benign"):
         """
         TODO: MAY NOT WANT TO DO THIS - COULD BE NOISY (at least not keep every test case)
         Add a test case to the true positives collection.
@@ -152,62 +135,38 @@ class EfficacyTracker:
         TODO: Get rid of FailedTestCase, since we've added detector_not_seen, etc. to the base TestCase class.
         """
         with self._lock:
-            if test not in self.true_negatives:
-                if self.track_tp_and_tn_cases:
-                    self.true_negatives.append(
-                        EfficacyTracker.FailedTestCase(
-                            test,
-                            expected_label=expected_label,
-                            detector_not_seen=detector_not_seen
-                        )
+            if test not in self.true_negatives and self.track_tp_and_tn_cases:
+                self.true_negatives.append(
+                    EfficacyTracker.FailedTestCase(
+                        test, expected_label=expected_label, detector_not_seen=detector_not_seen
                     )
+                )
             self.tn_count += 1
             self.per_detector_tn[detector_not_seen] += 1
 
         if self.debug:
             print(f"{DARK_GREEN}TN: expected_label '{expected_label}' detected '{detector_not_seen}'")
-            print(
-                f"\t{DARK_YELLOW}Messages:\n"
-                f"{DARK_GREEN}{formatted_json_str(test.messages[:3])}{RESET}"
-            )
+            print(f"\t{DARK_YELLOW}Messages:\n{DARK_GREEN}{formatted_json_str(test.messages[:3])}{RESET}")
 
-    def add_true_positive(
-        self,
-        test: TestCase,
-        detector_seen: str,
-        expected_label: str
-    ):
+    def add_true_positive(self, test: TestCase, detector_seen: str, expected_label: str):
         """
         Add a test case to the true positives collection.
         This is used to track test cases where a detection was expected
         for detector_seen given expected_label, and it was seen.
         """
         with self._lock:
-            if test not in self.true_positives:
-                if self.track_tp_and_tn_cases:
-                    self.true_positives.append(
-                        EfficacyTracker.FailedTestCase(
-                            test,
-                            expected_label=expected_label,
-                            detector_seen=detector_seen
-                        )
-                    )
+            if test not in self.true_positives and self.track_tp_and_tn_cases:
+                self.true_positives.append(
+                    EfficacyTracker.FailedTestCase(test, expected_label=expected_label, detector_seen=detector_seen)
+                )
             self.tp_count += 1
             self.per_detector_tp[detector_seen] += 1
 
         if self.debug:
             print(f"{DARK_GREEN}TP: expected_label '{expected_label}' detected '{detector_seen}'")
-            print(
-                f"\t{DARK_YELLOW}Messages:\n"
-                f"{DARK_GREEN}{formatted_json_str(test.messages[:3])}{RESET}"
-            )
+            print(f"\t{DARK_YELLOW}Messages:\n{DARK_GREEN}{formatted_json_str(test.messages[:3])}{RESET}")
 
-    def add_false_negative(
-            self,
-            test: TestCase,
-            detector_not_seen: str,
-            expected_label: str
-    ):
+    def add_false_negative(self, test: TestCase, detector_not_seen: str, expected_label: str):
         """
         Add a test case to the false negatives collection.
         This is used to track test cases where a detection was expected for
@@ -217,31 +176,30 @@ class EfficacyTracker:
             if not any(fn.test == test and fn.detector_not_seen == detector_not_seen for fn in self.false_negatives):
                 self.false_negatives.append(
                     EfficacyTracker.FailedTestCase(
-                        test,
-                        expected_label=expected_label,
-                        detector_not_seen=detector_not_seen)
+                        test, expected_label=expected_label, detector_not_seen=detector_not_seen
+                    )
                 )
             self.fn_count += 1
             self.per_detector_fn[detector_not_seen] += 1
             self.label_stats[detector_not_seen]["FN"] += 1
 
         if self.verbose:
-            index = test.index if hasattr(test, 'index') else "unknown"
-            print(f"{DARK_RED}Test:{index}:FN: expected detection: '{detector_not_seen}' for expected_label:'{expected_label}'")
+            index = test.index if hasattr(test, "index") else "unknown"
             print(
-                f"\t{DARK_YELLOW}Messages:\n"
-                f"{DARK_RED}{formatted_json_str(test.messages[:3])}{RESET}"
+                f"{DARK_RED}Test:{index}:FN: expected detection: '{detector_not_seen}' "
+                f"for expected_label:'{expected_label}'"
             )
+            print(f"\t{DARK_YELLOW}Messages:\n{DARK_RED}{formatted_json_str(test.messages[:3])}{RESET}")
 
     def update(
-            self,
-            test: TestCase,
-            expected_labels: List[str],
-            detected_detectors_labels: List[str],
-            benign_labels: List[str] = defaults.benign_labels,
-            malicious_prompt_labels: List[str] = defaults.malicious_prompt_labels,
-            negative_labels: List[str] | None = None,
-            ):
+        self,
+        test: TestCase,
+        expected_labels: list[str],
+        detected_detectors_labels: list[str],
+        benign_labels: list[str] = defaults.benign_labels,
+        malicious_prompt_labels: list[str] = defaults.malicious_prompt_labels,
+        negative_labels: list[str] | None = None,
+    ):
         """
         Update efficacy statistics by comparing expected and actual detector results.
         Return FP_DETECTED, FN_DETECTED, FP_NAMES, FN_NAMES
@@ -287,9 +245,7 @@ class EfficacyTracker:
         expected_labels = expected_labels or []
         detected_detectors_labels = detected_detectors_labels or []
         expected_labels = [str(label) for label in expected_labels]
-        detected_detectors_labels = [
-            str(det) for det in detected_detectors_labels
-        ]
+        detected_detectors_labels = [str(det) for det in detected_detectors_labels]
 
         # Extract expected labels directly from the test case label field.
         # Supports multiple formats:
@@ -325,6 +281,7 @@ class EfficacyTracker:
             if label.startswith(defaults.topic_prefix):
                 return label.split(defaults.topic_prefix, 1)[1]  # drop prefix
             return label
+
         expected_labels = [_canon(lbl) for lbl in expected_labels]
 
         # Canonicalize detected labels as well (strip 'topic:' if present)
@@ -345,8 +302,7 @@ class EfficacyTracker:
 
         # Remove negative labels from expected_labels
         expected_labels = [
-            lbl for lbl in expected_labels
-            if not (isinstance(lbl, str) and lbl.startswith("not-topic:"))
+            lbl for lbl in expected_labels if not (isinstance(lbl, str) and lbl.startswith("not-topic:"))
         ]
 
         # Supplement expected_labels with positive topic labels from original_labels if missing
@@ -376,21 +332,12 @@ class EfficacyTracker:
             negative_label_map["malicious-prompt"] = "not-malicious-prompt"
 
             if "malicious-prompt" in detected_detectors_labels:
-                self.add_false_positive(
-                    test,
-                    expected_label="malicious-prompt",
-                    detector_seen="malicious-prompt"
-                )
+                self.add_false_positive(test, expected_label="malicious-prompt", detector_seen="malicious-prompt")
             else:
-                self.add_true_negative(
-                    test,
-                    expected_label="malicious-prompt",
-                    detector_not_seen="malicious-prompt"
-                )
+                self.add_true_negative(test, expected_label="malicious-prompt", detector_not_seen="malicious-prompt")
             # Remove helper labels to prevent double-counting downstream
             expected_labels = [
-                lbl for lbl in expected_labels
-                if lbl not in ("malicious-prompt", "not-malicious-prompt")
+                lbl for lbl in expected_labels if lbl not in ("malicious-prompt", "not-malicious-prompt")
             ]
             negative_label_map.pop("malicious-prompt", None)
             negative_label_map.pop("not-malicious-prompt", None)
@@ -401,11 +348,7 @@ class EfficacyTracker:
                 print(f"original_labels={original_labels}")
                 print(f"detected_detectors_labels={detected_detectors_labels}")
             for detected in detected_detectors_labels:
-                self.add_false_positive(
-                    test,
-                    expected_label="benign",
-                    detector_seen=detected
-                )
+                self.add_false_positive(test, expected_label="benign", detector_seen=detected)
             expected_labels.clear()
             negative_label_map.clear()
 
@@ -447,31 +390,30 @@ class EfficacyTracker:
             if expected in detected_detectors_labels:
                 # If the expected label is in the detected labels, it's a True Positive
                 if self.debug:
-                    print(f"{DARK_YELLOW}Checking for expected label '{expected}' in detected_detectors_labels...{RESET}")
+                    print(
+                        f"{DARK_YELLOW}Checking for expected label '{expected}' in detected_detectors_labels...{RESET}"
+                    )
                     print(f"{DARK_GREEN}TP: Expected label '{expected}' detected in {detected_detectors_labels}{RESET}")
 
                 tp_detected = True
                 found_tp.add(expected)
 
-                self.add_true_positive(
-                    test,
-                    expected_label=expected,
-                    detector_seen=expected
-                )
+                self.add_true_positive(test, expected_label=expected, detector_seen=expected)
             else:
                 # If the expected label is not in the detected labels, it's a False Negative
                 if self.debug:
-                    print(f"{DARK_YELLOW}Checking for expected label '{expected}' in detected_detectors_labels...{RESET}")
-                    print(f"{DARK_YELLOW}FN: Expected label '{expected}' not detected in {detected_detectors_labels}{RESET}")
+                    print(
+                        f"{DARK_YELLOW}Checking for expected label '{expected}' in detected_detectors_labels...{RESET}"
+                    )
+                    print(
+                        f"{DARK_YELLOW}FN: Expected label '{expected}' not "
+                        f"detected in {detected_detectors_labels}{RESET}"
+                    )
 
                 fn_detected = True
                 found_fn.add(expected)
 
-                self.add_false_negative(
-                    test,
-                    detector_not_seen=expected,
-                    expected_label=expected
-                )
+                self.add_false_negative(test, detector_not_seen=expected, expected_label=expected)
 
         # --------------------------------------------------------------
         # Any detection that does not match an expected label is a False Positive.
@@ -481,9 +423,7 @@ class EfficacyTracker:
                 fp_detected = True
                 found_fp.add(detected)
                 self.add_false_positive(
-                    test,
-                    expected_label=f"{defaults.not_topic_prefix}{detected}",
-                    detector_seen=detected
+                    test, expected_label=f"{defaults.not_topic_prefix}{detected}", detector_seen=detected
                 )
             # else: would have already been counted as a TP above
 
@@ -523,11 +463,7 @@ class EfficacyTracker:
                     )
                 fp_detected = True
                 found_fp.add(unexpected)
-                self.add_false_positive(
-                    test,
-                    expected_label="benign",
-                    detector_seen=unexpected
-                )
+                self.add_false_positive(test, expected_label="benign", detector_seen=unexpected)
         # else: expected_labels not empty  →  extras are ignored
 
         # ---------------------------------------------------------
@@ -535,9 +471,9 @@ class EfficacyTracker:
         # negatively) in the test‑case labels. No fallback TNs.
         # ---------------------------------------------------------
         for det in detected_detectors_labels:
-            if det in expected_labels:      # already handled as TP
+            if det in expected_labels:  # already handled as TP
                 continue
-            if det in negative_label_map:   # handled above
+            if det in negative_label_map:  # handled above
                 continue
             # If we reach here:
             #   * det is NOT expected
@@ -558,18 +494,22 @@ class EfficacyTracker:
         # Make sure every detector that appears ONLY in negative
         # labels is represented, so it shows up in per‑detector TNs.
         # ---------------------------------------------------------
-        for neg_detector in negative_label_map.keys():
-            if neg_detector not in self.per_detector_tp \
-               and neg_detector not in self.per_detector_fp \
-               and neg_detector not in self.per_detector_fn \
-               and neg_detector not in self.per_detector_tn:
+        for neg_detector in negative_label_map:
+            if (
+                neg_detector not in self.per_detector_tp
+                and neg_detector not in self.per_detector_fp
+                and neg_detector not in self.per_detector_fn
+                and neg_detector not in self.per_detector_tn
+            ):
                 self.per_detector_tn[neg_detector] = 0
 
         # Make sure benign‑fallback counts have a TN bucket for malicious‑prompt
-        if "malicious-prompt" not in self.per_detector_tn \
-           and "malicious-prompt" not in self.per_detector_tp \
-           and "malicious-prompt" not in self.per_detector_fp \
-           and "malicious-prompt" not in self.per_detector_fn:
+        if (
+            "malicious-prompt" not in self.per_detector_tn
+            and "malicious-prompt" not in self.per_detector_tp
+            and "malicious-prompt" not in self.per_detector_fp
+            and "malicious-prompt" not in self.per_detector_fn
+        ):
             self.per_detector_tn["malicious-prompt"] = 0
 
         # ---------------------------------------------------------
@@ -586,22 +526,14 @@ class EfficacyTracker:
             # No bucket was incremented. Guarantee a count.
             if expected_labels and detected_detectors_labels:
                 tp_detected = True
-                self.add_true_positive(
-                    test,
-                    detector_seen="benign",
-                    expected_label="benign"
-                )
+                self.add_true_positive(test, detector_seen="benign", expected_label="benign")
                 if self.debug:
                     print(f"{DARK_YELLOW}Fallback: counted as TP{RESET}")
             else:
                 tn_detected = True
                 # Count a TN under the *malicious‑prompt* detector,
                 # since the benign test implicitly expects it to stay silent.
-                self.add_true_negative(
-                    test,
-                    detector_not_seen="malicious-prompt",
-                    expected_label="benign"
-                )
+                self.add_true_negative(test, detector_not_seen="malicious-prompt", expected_label="benign")
                 if self.debug:
                     print(f"{DARK_YELLOW}Fallback: counted as TN for malicious-prompt{RESET}")
 
@@ -624,7 +556,7 @@ class EfficacyTracker:
 
         # Optional fields for overall metrics
         avg_duration: float
-        total_calls: int    # total number of calls made to AI Guard
+        total_calls: int  # total number of calls made to AI Guard
         fp_saved_test_count: int  # saved test cases with false positives
         fn_saved_test_count: int  # saved test cases with false negatives
         tp_saved_test_count: int  # saved test cases with true positives (only if track_tp_and_tn_cases is True)
@@ -635,16 +567,14 @@ class EfficacyTracker:
         fn_detector_summary: str  # summary of per-detector FN counts
         tn_detector_summary: str  # summary of per-detector TN counts
 
-
-
-    def calculate_metrics(self) -> Dict[str, "EfficacyTracker.MetricsDict"]:
+    def calculate_metrics(self) -> dict[str, EfficacyTracker.MetricsDict]:
         """
         Calculate and return various metrics based on the current counts.
         Returns a map of detector names to their metrics.
         metrics["name"] = detector_metrics
         Names can be "overall", <detector_name> or <topic_name>, or <label_name>
         """
-        all_metrics: dict[str, MetricsDict] = {}
+        all_metrics: dict[str, EfficacyTracker.MetricsDict] = {}
 
         # TODO: Check at the end that the sum of the counts of all collections
         # is equal to self.total_calls.
@@ -652,7 +582,7 @@ class EfficacyTracker:
         fn_test_count = len(self.false_negatives)
         tp_test_count = len(self.true_positives)
         tn_test_count = len(self.true_negatives)
-        total_test_count = (fp_test_count + fn_test_count + tp_test_count + tn_test_count)
+        total_test_count = fp_test_count + fn_test_count + tp_test_count + tn_test_count
 
         tp = self.tp_count
         fp = self.fp_count
@@ -664,9 +594,7 @@ class EfficacyTracker:
         fn_rate = fn / (tp + fn) if (tp + fn) else 0
         precision = tp / (tp + fp) if (tp + fp) else 0
         recall = tp / (tp + fn) if (tp + fn) else 0
-        f1 = (
-            2 * precision * recall / (precision + recall) if (precision + recall) else 0
-        )
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0
         accuracy = (tp + tn) / (tp + fp + fn + tn) if (tp + fp + fn + tn) else 0
         specificity = tn / (tn + fp) if (tn + fp) else 0
         # TODO: Ensure that the overall_metrics are only calculated against per-test case metrics,
@@ -681,13 +609,11 @@ class EfficacyTracker:
             "specificity": specificity,
             "fp_rate": fp_rate,
             "fn_rate": fn_rate,
-
             "total_count": total,
             "tp_count": self.tp_count,
             "tn_count": self.tn_count,
             "fp_count": self.fp_count,
             "fn_count": self.fn_count,
-
             "avg_duration": self.duration_sum / self.total_calls if self.total_calls else 0.0,
             "total_calls": self.total_calls,
             "total_saved_test_count": total_test_count,
@@ -719,9 +645,7 @@ class EfficacyTracker:
             fn_rate = fn / (tp + fn) if (tp + fn) else 0
             precision = tp / (tp + fp) if (tp + fp) else 0
             recall = tp / (tp + fn) if (tp + fn) else 0
-            f1 = (
-                2 * precision * recall / (precision + recall) if (precision + recall) else 0
-            )
+            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0
             accuracy = (tp + tn) / (tp + fp + fn + tn) if (tp + fp + fn + tn) else 0
             specificity = tn / (tn + fp) if (tn + fp) else 0
             det_metrics: EfficacyTracker.MetricsDict = {
@@ -732,7 +656,6 @@ class EfficacyTracker:
                 "specificity": specificity,
                 "fp_rate": fp_rate,
                 "fn_rate": fn_rate,
-
                 "total_count": total,
                 "tp_count": tp,
                 "tn_count": tn,
@@ -765,7 +688,7 @@ class EfficacyTracker:
         #       and flush to disk so callers can monitor errors in real-time.
         if self.args.summary_report_file:
             error_report_file = self.args.summary_report_file + ".errors.txt"
-            with open(error_report_file, "w") as f:
+            with Path(error_report_file).open(mode="w") as f:
                 f.write("\nErrors:\n")
                 for error_pair in self.error_responses:
                     try:
@@ -781,16 +704,16 @@ class EfficacyTracker:
                         f.write(f"Error in print_errors: {e}\n")
                         f.write(f"Error response: {error_pair}\n")
 
-
-    def print_stats(self, enabled_detectors: List[str] = None):
-        """ Print a summary of the efficacy statistics.
-            Print default reports, and any requested by the user.
-            summary_report_file is the file to write the summary report to.
-            fps_out_csv is the file to write false positives to.
-            fns_out_csv is the file to write false negatives to.
-            TODO: Add fps_out and fns_out that derive the output file type from the file extension.
-            TODO: Add create_summary_csv() support as is done in prompt-lab.
+    def print_stats(self, enabled_detectors: list[str] = None):
+        """Print a summary of the efficacy statistics.
+        Print default reports, and any requested by the user.
+        summary_report_file is the file to write the summary report to.
+        fps_out_csv is the file to write false positives to.
+        fns_out_csv is the file to write false negatives to.
+        TODO: Add fps_out and fns_out that derive the output file type from the file extension.
+        TODO: Add create_summary_csv() support as is done in prompt-lab.
         """
+
         def _print_all_stats(writeln):
             # Strip out helper/pseudo‑detector labels that should never get their own stats section
             if "benign" in enabled_detectors:
@@ -827,12 +750,12 @@ class EfficacyTracker:
                     continue
 
                 if detector == "overall":
-                   writeln(f"\n--{GREEN}Overall Counts:{RESET}--")
+                    writeln(f"\n--{GREEN}Overall Counts:{RESET}--")
                 else:
                     writeln(f"\n--{GREEN}Detector: {detector}{RESET}--")
 
                 # Summarize detectors with zero counts
-                if det_metrics['total_count'] == 0:
+                if det_metrics["total_count"] == 0:
                     writeln(f"{DARK_YELLOW}No non-zero results for this detector.{RESET}")
                     continue
 
@@ -851,7 +774,7 @@ class EfficacyTracker:
                     writeln(f"\n{GREEN}-- Info on Test Cases Saved for Reporting {RESET}--")
                     writeln(f"track_tp_and_tn_cases: {self.track_tp_and_tn_cases}")
                     writeln(f"Total Test Cases Saved: {det_metrics['total_saved_test_count']}")
-                    if det_metrics['total_saved_test_count'] == 0:
+                    if det_metrics["total_saved_test_count"] == 0:
                         writeln(f"{DARK_YELLOW}No test cases saved.{RESET}")
                     else:
                         writeln(f"{DARK_RED}Saved Test Cases with FPs: {det_metrics['fp_saved_test_count']}{RESET}")
@@ -871,7 +794,11 @@ class EfficacyTracker:
                     writeln(f"{DARK_YELLOW}No false positives recorded.{RESET}")
                 else:
                     for fp_case in self.false_positives:
-                        writeln(f"{DARK_RED}Test Case: {fp_case.test.index}, Expected Label: {fp_case.expected_label}, Detected: {fp_case.detector_seen}")
+                        writeln(
+                            f"{DARK_RED}Test Case: {fp_case.test.index}, "
+                            f"Expected Label: {fp_case.expected_label}, "
+                            f"Detected: {fp_case.detector_seen}"
+                        )
                         writeln(f"\tMessages: {formatted_json_str(fp_case.test.messages[:3])}")
             if self.args and self.args.print_fns:
                 writeln(f"\n--{GREEN}False Negatives:{RESET}--")
@@ -879,20 +806,28 @@ class EfficacyTracker:
                     writeln(f"{DARK_YELLOW}No false negatives recorded.{RESET}")
                 else:
                     for fn_case in self.false_negatives:
-                        writeln(f"{DARK_RED}Test Case: {fn_case.test.index}, Expected Label: {fn_case.expected_label}, Not Detected: {fn_case.detector_not_seen}")
+                        writeln(
+                            f"{DARK_RED}Test Case: {fn_case.test.index}, "
+                            f"Expected Label: {fn_case.expected_label}, "
+                            f"Not Detected: {fn_case.detector_not_seen}"
+                        )
                         writeln(f"\tMessages: {formatted_json_str(fn_case.test.messages[:3])}")
 
         """ print_stats() body here"""
         self.end_time = time.time()
         if self.args and self.args.summary_report_file:
-            with open(self.args.summary_report_file, "w") as f:
+            with Path(self.args.summary_report_file).open(mode="w") as f:
+
                 def writeln(line: str = ""):
                     print(line)
                     f.write(line + "\n")
+
                 _print_all_stats(writeln)
         else:
+
             def writeln(line: str = ""):
                 print(line)
+
             _print_all_stats(writeln)
         # print fps_out_csv and fns_out_csv if specified
         if self.args and self.args.fps_out_csv:
@@ -900,17 +835,18 @@ class EfficacyTracker:
             EfficacyTracker.print_cases_csv(
                 fps_out_csv,
                 positive=True,  # True for false positives
-                cases=self.false_positives
+                cases=self.false_positives,
             )
         if self.args and self.args.fns_out_csv:
             fns_out_csv = self.args.fns_out_csv
             EfficacyTracker.print_cases_csv(
                 fns_out_csv,
                 positive=False,  # False for false negatives
-                cases=self.false_negatives
+                cases=self.false_negatives,
             )
+
     @staticmethod
-    def print_cases_csv(out_csv: str, positive: bool, cases: list["EfficacyTracker.FailedTestCase"]):
+    def print_cases_csv(out_csv: str, positive: bool, cases: list[EfficacyTracker.FailedTestCase]):
         """
         Print test cases (false positives, false negatives, etc.) to a CSV file.
 
@@ -921,7 +857,7 @@ class EfficacyTracker:
         if not out_csv.endswith(".csv"):
             out_csv += ".csv"
         try:
-            with open(out_csv, mode="w", newline="", encoding="utf-8") as csvfile:
+            with Path(out_csv).open(mode="w", newline="", encoding="utf-8") as csvfile:
                 csvwriter = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
                 csvwriter.writerow(
                     [
@@ -935,27 +871,23 @@ class EfficacyTracker:
                 )
                 for case in cases:
                     messages = (
-                        case.test.messages
-                        if case.test.messages
-                        else [{"role": "user", "content": "No User Message"}]
+                        case.test.messages if case.test.messages else [{"role": "user", "content": "No User Message"}]
                     )
                     # Join all user messages for context, sanitize to remove newlines and carriage returns
-                    test_case_messages = " | ".join(
-                        msg["content"].replace("\n", " ").replace("\r", " ")
-                        for msg in messages if msg.get("role") == "user"
-                    ) or "No Messages"
-                    test_case_index = (
-                        case.test.index if getattr(case.test, "index", None) is not None else "N/A"
+                    test_case_messages = (
+                        " | ".join(
+                            msg["content"].replace("\n", " ").replace("\r", " ")
+                            for msg in messages
+                            if msg.get("role") == "user"
+                        )
+                        or "No Messages"
                     )
+                    test_case_index = case.test.index if getattr(case.test, "index", None) is not None else "N/A"
                     expected_labels = (
-                        ",".join(case.expected_label)
-                        if isinstance(case.expected_label, list)
-                        else case.expected_label
+                        ",".join(case.expected_label) if isinstance(case.expected_label, list) else case.expected_label
                     )
                     test_case_labels = (
-                        ",".join(case.test.label)
-                        if isinstance(case.test.label, list)
-                        else case.test.label
+                        ",".join(case.test.label) if isinstance(case.test.label, list) else case.test.label
                     )
                     system_prompt = case.test.get_system_message()
                     system_prompt = system_prompt.replace("\n", " ").replace("\r", " ")
@@ -983,20 +915,18 @@ class EfficacyTracker:
         return out_csv
 
     def print_fns_csv(self, fns_out_csv: str):
-        """ Print false negatives to a CSV file.
-        """
+        """Print false negatives to a CSV file."""
         if not fns_out_csv.endswith(".csv"):
             fns_out_csv += ".csv"
         print(f"Writing false negatives to {fns_out_csv}")
-        with open(fns_out_csv, "w") as f:
+        with Path(fns_out_csv).open(mode="w") as f:
             f.write("Test Case Index,Expected Label,Not Detected Detector\n")
             for fn_case in self.false_negatives:
                 f.write(f"{fn_case.test.index},{fn_case.expected_label},{fn_case.detector_not_seen}\n")
         print(f"{DARK_GREEN}False negatives written to {fns_out_csv}{RESET}")
 
     def _print_label_stats(self, writeln):
-        """ Print label-wise false positives and false negatives.
-        """
+        """Print label-wise false positives and false negatives."""
         writeln(f"\n--{GREEN}Label-wise False Positives and False Negatives:{RESET}--")
         if not self.label_stats:
             writeln(f"{DARK_YELLOW}No label stats available.{RESET}")
@@ -1006,7 +936,6 @@ class EfficacyTracker:
             fp = stats.get("FP", 0)
             fn = stats.get("FN", 0)
             writeln(f"\tLabel: {label}, False Positives: {fp}, False Negatives: {fn}")
-
 
     @staticmethod
     def is_subset(expected: dict, actual: dict):

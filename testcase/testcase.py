@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict
+
 from config.settings import Settings  # Assuming Settings is already defined in config/settings.py
 from defaults import defaults  # Assuming defaults is already defined in defaults/defaults.py
 from utils.utils import normalize_topics_and_detectors
@@ -109,31 +111,37 @@ Want expected_detectors to look like what AI Guard returns, e.g.:
     }
 """
 
+
 @dataclass
 class EntityResponse:
     type: str
     value: str
     action: str
 
+
 @dataclass
 class EntityResult:
     detected: bool = False
-    data: Dict[str, List[EntityResponse]] = field(default_factory=dict)
+    data: dict[str, list[EntityResponse]] = field(default_factory=dict)
+
 
 @dataclass
 class CodeResult:
     detected: bool = False
-    data: Dict[str, str] = field(default_factory=dict)
+    data: dict[str, str] = field(default_factory=dict)
+
 
 @dataclass
 class AnalyzerResponse:
     analyzer: str
     confidence: float
 
+
 @dataclass
 class DetectorData:
     action: str
-    analyzer_responses: List[AnalyzerResponse] = field(default_factory=list)
+    analyzer_responses: list[AnalyzerResponse] = field(default_factory=list)
+
 
 @dataclass
 class DetectorResult:
@@ -147,23 +155,26 @@ class TopicResponse:
     topic: str
     confidence: float
 
+
 @dataclass
 class TopicResult:
     detected: bool = False
-    topics: List[TopicResponse] = field(default_factory=list)
+    topics: list[TopicResponse] = field(default_factory=list)
     action: str = ""
+
     @property
-    def data(self) -> Dict[str, List[TopicResponse]]:
+    def data(self) -> dict[str, list[TopicResponse]]:
         return {"topics": self.topics}
+
 
 @dataclass
 class ExpectedDetectors:
-    prompt_injection: Optional[DetectorResult] = None
-    code_detection: Optional[CodeResult] = None
-    language_detection: Optional[DetectorResult] = None
-    topic: Optional[TopicResult] = None
-    malicious_entity: Optional[EntityResult] = None
-    custom_entity: Optional[EntityResult] = None
+    prompt_injection: DetectorResult | None = None
+    code_detection: CodeResult | None = None
+    language_detection: DetectorResult | None = None
+    topic: TopicResult | None = None
+    malicious_entity: EntityResult | None = None
+    custom_entity: EntityResult | None = None
 
     def get_expected_detector_labels(self) -> list[str]:
         """
@@ -211,27 +222,28 @@ class ExpectedDetectors:
 class TestCase:
     """Class representing a test case with settings and messages."""
 
-    settings: Optional[Settings] = None
-    messages: List[Dict[str, str]] = field(default_factory=list)
+    settings: Settings | None = None
+    messages: list[dict[str, str]] = field(default_factory=list)
     expected_detectors: ExpectedDetectors = field(default_factory=ExpectedDetectors)
-    enabled_override_detectors: List[str] = field(default_factory=list)  # Internal helper: lists detectors enabled through settings.overrides if present)
-    label: Optional[List[str]] = field(default_factory=list)  # Optional labels for the test case
-    # Fields that will only be used to track the detectors seen during the test case execution
-    # This is not part of the expected output, but is useful for runtime checks
-    # detectors_seen and not_seen are now in the ExpectedDetectors FailedTestCase class
-    # detectors_seen: Optional[List[str]] = field(default_factory=list)  # Detectors that have been seen in the test case
-    # detectors_not_seen: Optional[List[str]] = field(default_factory=list)  # Detectors that were expected but not seen in the test case
-    index: Optional[int] = None  # Optional index of the test case in the input, useful for tracking
+    enabled_override_detectors: list[str] = field(default_factory=list)
+    """
+    Internal helper: lists detectors enabled through settings.overrides if
+    present.
+    """
+    label: list[str] | None = field(default_factory=list)
+    """Optional labels for the test case."""
+    index: int | None = None
+    """Optional index of the test case in the input, useful for tracking."""
 
     def __init__(
         self,
-        messages: List[dict],
+        messages: list[dict],
         label=None,
-        settings: Optional[Settings] = None,
-        expected_detectors: Optional[dict] = None,
+        settings: Settings | None = None,
+        expected_detectors: dict | None = None,
     ):
         self.messages = messages
-        self.enabled_override_detectors = [] # Always set in AIGuardTests:load_from_file() for now.
+        self.enabled_override_detectors = []  # Always set in AIGuardTests:load_from_file() for now.
 
         # Flexible label initialization to allow dicts, lists, or strings
         if label is None:
@@ -303,23 +315,24 @@ class TestCase:
                         ],
                     )
                 elif name in ("malicious_entity", "custom_entity") and value is not None:
-                    setattr(ed, name, EntityResult(
-                        detected=value.get("detected", False),
-                        data={
-                            "entities": [
-                                EntityResponse(**er)
-                                for er in value["data"].get("entities", [])
-                            ]
-                        },
-                    ))
+                    setattr(
+                        ed,
+                        name,
+                        EntityResult(
+                            detected=value.get("detected", False),
+                            data={"entities": [EntityResponse(**er) for er in value["data"].get("entities", [])]},
+                        ),
+                    )
             self.expected_detectors = ed
         else:
             self.expected_detectors = ExpectedDetectors()
 
-    # TODO: The Settings.system_prompt could be there AND there could be a system message in the messages list.
-    #       If there is a system message in the messages list, it should take precedence over the system_prompt. (WHY - WANT TO CHANGE THIS!)
-    #       If there is no system message in the messages list, the system_prompt should be added as the first message.
-    #       If there is no system_prompt, a default system prompt should be used.
+    # TODO: The Settings.system_prompt could be there AND there could be a
+    # system message in the messages list.
+    # - If there is a system message in the messages list, it should take precedence over the system_prompt.
+    #   (WHY - WANT TO CHANGE THIS!)
+    # - If there is no system message in the messages list, the system_prompt should be added as the first message.
+    # - If there is no system_prompt, a default system prompt should be used.
     def get_system_message(self, default_prompt: str = "") -> str:
         """Returns the content of the first 'system' message if it exists, otherwise returns the default prompt."""
         if self.settings is not None and self.settings.system_prompt is not None:
@@ -383,17 +396,23 @@ class TestCase:
     @classmethod
     # TODO: REVIEW ALL from_dict methods to ensure they are consistent and correct.
     # Add more isinstance checks to ensure that the data is in the expected format.
-    def from_dict(cls, data: dict) -> "TestCase":
+    def from_dict(cls, data: dict) -> TestCase:
         """
         Hydrate a TestCase instance from a raw dict.
         """
         messages = data.get("messages", [])
         # Hydrate settings if dict, otherwise pass through
         settings_data = data.get("settings")
-        settings = Settings.from_dict(settings_data) if hasattr(Settings, "from_dict") and isinstance(settings_data, dict) else settings_data
+        settings = (
+            Settings.from_dict(settings_data)
+            if hasattr(Settings, "from_dict") and isinstance(settings_data, dict)
+            else settings_data
+        )
         # Hydrate expected_detectors
         ed_data = data.get("expected_detectors")
-        expected_detectors = ExpectedDetectors.from_dict(ed_data) if hasattr(ExpectedDetectors, "from_dict") else ed_data
+        expected_detectors = (
+            ExpectedDetectors.from_dict(ed_data) if hasattr(ExpectedDetectors, "from_dict") else ed_data
+        )
         # Labels
         labels = data.get("label", []) or data.get("labels", [])
         if isinstance(labels, dict):
@@ -403,7 +422,7 @@ class TestCase:
         elif not isinstance(labels, list):
             labels = []
         # Ensure labels are a list of strings
-        if not (isinstance(labels, list) or isinstance(labels, dict)) or (
+        if not isinstance(labels, (list, dict)) or (
             isinstance(labels, list) and not all(isinstance(lbl, str) for lbl in labels)
         ):
             raise ValueError("Labels must be a list of strings or a dict for kind/tag.")
