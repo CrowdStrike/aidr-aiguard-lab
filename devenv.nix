@@ -5,6 +5,8 @@
   inputs,
   ...
 }: {
+  dotenv.enable = true;
+
   languages.python = {
     enable = true;
     version = "3.10";

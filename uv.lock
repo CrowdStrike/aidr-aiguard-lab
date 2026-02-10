@@ -3,9 +3,9 @@ revision = 3
 requires-python = ">=3.10"
 
 [[package]]
-name = "aiguard-lab"
+name = "aidr-aiguard-lab"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "argparse" },
     { name = "dotenv" },

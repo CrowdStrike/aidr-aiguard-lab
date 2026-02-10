@@ -46,7 +46,7 @@ It supports both **malicious-prompt** detection and **topic-based** detection.
 
       Then populate it.
    
-   - NOTE: If you get 400 or 403 errors when running `aiguard_lab.py`, the cause is most likely incorrect values for CS_AIDR_BASE_URL and/or CS_AIDR_TOKEN.
+   - NOTE: If you get 400 or 403 errors, the cause is most likely incorrect values for CS_AIDR_BASE_URL and/or CS_AIDR_TOKEN.
 
 ## Usage
 
@@ -60,27 +60,27 @@ Test cases can be provided via `.json`, `.jsonl`, or `.txt` files.
 
 - Primary usage:
 ```bash
-uv run aiguard_lab.py --input_file data/test_dataset.jsonl --detectors malicious-prompt --rps 25
+uv run aidr_aiguard_lab --input_file data/test_dataset.jsonl --detectors malicious-prompt --rps 25
 ```
 
 - You can check a single prompt with assumed labels:
 ```bash
-uv run aiguard_lab.py --prompt "Ignore all prior instructions..." --detectors malicious-prompt --assume_tps
+uv run aidr_aiguard_lab --prompt "Ignore all prior instructions..." --detectors malicious-prompt --assume_tps
 ```
 
 - Specify a system prompt to inovke conformance/non-conformance testing:
 ```bash
-uv run aiguard_lab.py --prompt "Talk to me about dragons and sorcerers." --system_prompt "You are a financial advisor bot."  --detectors malicious-prompt --assume_tps
+uv run aidr_aiguard_lab --prompt "Talk to me about dragons and sorcerers." --system_prompt "You are a financial advisor bot."  --detectors malicious-prompt --assume_tps
 ```
 
 - Check which topics could be detected in a given input:
 ```bash
-uv run aiguard_lab.py --prompt How much do I need to save to afford a house in Portland? --report_any_topic --assume_tps
+uv run aidr_aiguard_lab --prompt How much do I need to save to afford a house in Portland? --report_any_topic --assume_tps
 ```
 
 Saving FPs, FNs, and summary report file:
 ```bash
-uv run aiguard_lab.py \
+uv run aidr_aiguard_lab \
 --input_file data/test_dataset.jsonl \
 --fps_out_csv test_dataset.fps.csv \
 --fns_out_csv test_dataset.fns.csv \
@@ -119,7 +119,7 @@ You can override the default AIDR metadata using the `--aidr_config` flag with e
 Using JSON string:
 
    ```bash
-uv run aiguard_lab.py \
+uv run aidr_aiguard_lab \
   --input_file data/test_dataset.jsonl \
   --service aidr \
   --aidr_config '{"app_id": "MyApp", "model": "GPT-4o", "extra_info": {"environment": "production"}}'
@@ -145,7 +145,7 @@ Create `aidr_config.json`:
 
 Then run:
 ```bash
-uv run aiguard_lab.py \
+uv run aidr_aiguard_lab \
   --input_file data/test_dataset.jsonl \
   --service aidr \
   --aidr_config aidr_config.json
@@ -156,7 +156,7 @@ uv run aiguard_lab.py \
 - `data/test_dataset.jsonl` is a CrowdStrike-curated dataset that will be expanded over time.
 
 ### CrowdStrike AIDR **TestCase** Record Format
-The `aiguard_lab.py` tool processes CrowdStrike **TestCase** records of the form:
+This tool processes CrowdStrike **TestCase** records of the form:
 ```json
   {
     "label": ["<detector-name-1>", "<detector-name-2>"],
@@ -292,11 +292,12 @@ The sample dataset (`data/test_dataset.jsonl`) contains:
 
 ## CMD Line Help
 ```
-usage: aiguard_lab.py [-h] (--prompt PROMPT | --input_file INPUT_FILE) [--system_prompt SYSTEM_PROMPT] [--force_system_prompt] [--detectors DETECTORS] [--use_labels_as_detectors]
-                      [--report_any_topic] [--topic_threshold TOPIC_THRESHOLD] [--fail_fast] [--malicious_prompt_labels MALICIOUS_PROMPT_LABELS] [--benign_labels BENIGN_LABELS]
-                      [--negative_labels NEGATIVE_LABELS] [--recipe RECIPE] [--aidr_config AIDR_CONFIG] [--report_title REPORT_TITLE] [--summary_report_file SUMMARY_REPORT_FILE]
-                      [--fps_out_csv FPS_OUT_CSV] [--fns_out_csv FNS_OUT_CSV] [--print_label_stats] [--print_fps] [--print_fns] [--verbose] [--debug] [--assume_tps | --assume_tns]
-                      [--rps RPS] [--max_poll_attempts MAX_POLL_ATTEMPTS] [--fp_check_only]
+usage: aidr_aiguard_lab [-h] (--prompt PROMPT | --input_file INPUT_FILE) [--system_prompt SYSTEM_PROMPT] [--force_system_prompt] [--detectors DETECTORS]
+                        [--use_labels_as_detectors] [--report_any_topic] [--topic_threshold TOPIC_THRESHOLD] [--fail_fast]
+                        [--malicious_prompt_labels MALICIOUS_PROMPT_LABELS] [--benign_labels BENIGN_LABELS] [--negative_labels NEGATIVE_LABELS] [--recipe RECIPE]
+                        [--aidr_config AIDR_CONFIG] [--report_title REPORT_TITLE] [--summary_report_file SUMMARY_REPORT_FILE] [--fps_out_csv FPS_OUT_CSV]
+                        [--fns_out_csv FNS_OUT_CSV] [--print_label_stats] [--print_fps] [--print_fns] [--verbose] [--debug] [--assume_tps | --assume_tns] [--rps RPS]
+                        [--max_poll_attempts MAX_POLL_ATTEMPTS] [--fp_check_only]
 
 Process prompts with AI Guard API.
 Specify a --prompt or --input_file
@@ -468,7 +469,7 @@ Performance:
 ```
 AIGuard Efficacy Report
 Report generated at: 2025-07-09 08:32:16 PDT (UTC-0700)
-CMD: ./aiguard_lab.py --input_file data/test_dataset.jsonl --rps 25
+CMD: aidr_aiguard_lab --input_file data/test_dataset.jsonl --rps 25
 Input dataset: data/test_dataset.jsonl
 Service: ai-guard
 Total Calls: 900

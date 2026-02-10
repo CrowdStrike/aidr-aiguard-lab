@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import argparse
 
-from config.settings import Settings
-from defaults import defaults
-from manager.aiguard_manager import AIGuardManager, AIGuardTests
+from aidr_aiguard_lab.config.settings import Settings
+from aidr_aiguard_lab.defaults import defaults
+from aidr_aiguard_lab.manager.aiguard_manager import AIGuardManager, AIGuardTests
 
 
 def determine_injection(labels: list[str]) -> bool:
