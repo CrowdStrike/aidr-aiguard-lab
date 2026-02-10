@@ -11,19 +11,20 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from api.pangea_api import base_url, pangea_post_api, poll_request
-from config.log_fields import LogFields
-from config.overrides import Overrides
-from config.settings import Settings
-from defaults import defaults
-from testcase.testcase import TestCase
-from utils.colors import (
+from aidr_aiguard_lab.api.pangea_api import base_url, pangea_post_api, poll_request
+from aidr_aiguard_lab.config.log_fields import LogFields
+from aidr_aiguard_lab.config.overrides import Overrides
+from aidr_aiguard_lab.config.settings import Settings
+from aidr_aiguard_lab.defaults import defaults
+from aidr_aiguard_lab.manager.efficacy_tracker import EfficacyTracker, ErrorRequestResponse
+from aidr_aiguard_lab.testcase.testcase import TestCase
+from aidr_aiguard_lab.utils.colors import (
     DARK_GREEN,
     DARK_RED,
     DARK_YELLOW,
     RESET,
 )
-from utils.utils import (
+from aidr_aiguard_lab.utils.utils import (
     apply_synonyms,
     formatted_json_str,
     get_duration,
@@ -33,8 +34,6 @@ from utils.utils import (
     remove_outer_quotes,
     remove_topic_prefix,
 )
-
-from .efficacy_tracker import EfficacyTracker, ErrorRequestResponse
 
 # Detector name mapping for different services
 

@@ -12,8 +12,8 @@ import urllib3
 from dotenv import load_dotenv
 from requests.models import Response
 
-from defaults import defaults
-from utils.colors import DARK_BLUE, DARK_GREEN, DARK_RED, DARK_YELLOW, RED, RESET
+from aidr_aiguard_lab.defaults import defaults
+from aidr_aiguard_lab.utils.colors import DARK_BLUE, DARK_GREEN, DARK_RED, DARK_YELLOW, RED, RESET
 
 # Disable urllib3 SSL warnings for corporate environments (Zscaler, etc.)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

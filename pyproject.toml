@@ -1,5 +1,5 @@
 [project]
-name = "aiguard-lab"
+name = "aidr-aiguard-lab"
 version = "0.1.0"
 description = "AI Guard Lab - A tool for testing AI Guardrails"
 authors = [
@@ -21,8 +21,27 @@ dev = [
     "ruff ==0.15.0",
 ]
 
-[tool.uv]
-package = false
+[build-system]
+requires = ["uv_build ==0.10.1"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "aidr_aiguard_lab"
+module-root = ""
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+disallow_any_generics = true
+disallow_untyped_defs = true
+follow_imports = "silent"
+no_implicit_reexport = false
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [tool.ruff]
 line-length = 120

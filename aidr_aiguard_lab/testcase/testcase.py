@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from config.settings import Settings  # Assuming Settings is already defined in config/settings.py
-from defaults import defaults  # Assuming defaults is already defined in defaults/defaults.py
-from utils.utils import normalize_topics_and_detectors
+from aidr_aiguard_lab.config.settings import Settings
+from aidr_aiguard_lab.defaults import defaults
+from aidr_aiguard_lab.utils.utils import normalize_topics_and_detectors
 
 """
 Want expected_detectors to look like what AI Guard returns, e.g.:

@@ -6,8 +6,8 @@ import time
 from collections import deque
 from datetime import datetime
 
-from defaults import defaults
-from utils.colors import DARK_RED, DARK_YELLOW, RESET
+from aidr_aiguard_lab.defaults import defaults
+from aidr_aiguard_lab.utils.colors import DARK_RED, DARK_YELLOW, RESET
 
 
 def remove_topic_prefix(labels: list[str]) -> list[str]:

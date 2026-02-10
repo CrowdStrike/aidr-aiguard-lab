@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, TypedDict
 
 from tzlocal import get_localzone
 
-from defaults import defaults
-from utils.colors import (
+from aidr_aiguard_lab.defaults import defaults
+from aidr_aiguard_lab.utils.colors import (
     BRIGHT_GREEN,
     DARK_GREEN,
     DARK_RED,
@@ -22,7 +22,7 @@ from utils.colors import (
     RED,
     RESET,
 )
-from utils.utils import (
+from aidr_aiguard_lab.utils.utils import (
     apply_synonyms,
     formatted_json_str,
 )
@@ -30,7 +30,7 @@ from utils.utils import (
 if TYPE_CHECKING:
     from requests.models import Response
 
-    from testcase.testcase import TestCase
+    from aidr_aiguard_lab.testcase.testcase import TestCase
 
 
 class ErrorRequestResponse:
