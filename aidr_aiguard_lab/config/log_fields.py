@@ -1,4 +1,10 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @dataclass
@@ -10,7 +16,7 @@ class LogFields:
     tools: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "LogFields":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> LogFields:
         """
         Hydrate a LogFields instance from a raw dict.
         """

@@ -18,7 +18,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "mypy ==1.19.1",
     "ruff ==0.15.0",
+    "types-requests ==2.32.4.20260107",
 ]
 
 [build-system]

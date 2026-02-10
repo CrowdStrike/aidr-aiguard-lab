@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import argparse
+from typing import TYPE_CHECKING
 
 from aidr_aiguard_lab.config.settings import Settings
 from aidr_aiguard_lab.defaults import defaults
 from aidr_aiguard_lab.manager.aiguard_manager import AIGuardManager, AIGuardTests
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def determine_injection(labels: list[str]) -> bool:
@@ -13,8 +17,8 @@ def determine_injection(labels: list[str]) -> bool:
     return not any(label in benign_labels for label in labels)  # Assume injection if not labeled as benign
 
 
-def bounded_int(min_val, max_val):
-    def checker(val):
+def bounded_int(min_val: int, max_val: int) -> Callable[[str], int]:
+    def checker(val: str) -> int:
         ival = int(val)
         if ival < min_val or ival > max_val:
             raise argparse.ArgumentTypeError(f"Value must be between {min_val} and {max_val}")
@@ -23,7 +27,7 @@ def bounded_int(min_val, max_val):
     return checker
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Process prompts with AI Guard API.\nSpecify a --prompt or --input_file",
         formatter_class=argparse.RawTextHelpFormatter,

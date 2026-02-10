@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import csv
 import json
 import threading
-from argparse import Namespace
 from collections import Counter, defaultdict
-from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from threading import Semaphore
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from pydantic import BaseModel
 
@@ -34,6 +34,12 @@ from aidr_aiguard_lab.utils.utils import (
     remove_outer_quotes,
     remove_topic_prefix,
 )
+
+if TYPE_CHECKING:
+    from argparse import Namespace
+    from collections.abc import Mapping
+
+    from requests import Response
 
 # Detector name mapping for different services
 
@@ -147,14 +153,14 @@ class AIGuardManager:
             raise ValueError("Benign and malicious prompt labels must not overlap.")
 
         # TODO: Should these all be moved into EfficacyTracker?
-        self.detected_detectors: Counter = Counter()
-        self.detected_analyzers: Counter = Counter()
-        self.detected_malicious_entities: Counter = Counter()
-        self.detected_topics: Counter = Counter()
-        self.detected_languages: Counter = Counter()
-        self.detected_code_languages: Counter = Counter()
+        self.detected_detectors = Counter[str]()
+        self.detected_analyzers = Counter[str]()
+        self.detected_malicious_entities = Counter[str]()
+        self.detected_topics = Counter[str]()
+        self.detected_languages = Counter[str]()
+        self.detected_code_languages = Counter[str]()
 
-    def _parse_aidr_config(self, aidr_config_arg):
+    def _parse_aidr_config(self, aidr_config_arg: str) -> dict[str, Any] | None:
         """
         Parse AIDR config from JSON string or file path.
 
@@ -182,28 +188,28 @@ class AIGuardManager:
             print(f"{DARK_RED}Error parsing AIDR config JSON: {e}{RESET}")
             return None
 
-    def add_error_response(self, request_id, request, response):
+    def add_error_response(self, request_id: str, request: Mapping[str, Any], response: Response) -> None:
         """TODO: Allow error responses to be added to an output file and flushed to disk as they come in"""
         with self.efficacy._lock:
             self.efficacy.errors[response.status_code] += 1
             error_pair = ErrorRequestResponse(request_id=request_id, request_data=request, response=response)
             self.efficacy.error_responses.append(error_pair)
 
-    def add_duration(self, duration):
+    def add_duration(self, duration: float) -> None:
         with self.efficacy._lock:
             self.efficacy.duration_sum += duration
 
-    def add_total_calls(self):
+    def add_total_calls(self) -> None:
         with self.efficacy._lock:
             self.efficacy.total_calls += 1
 
-    def get_total_calls(self):
+    def get_total_calls(self) -> int:
         return self.efficacy.total_calls
 
-    def get_blocked(self):
+    def get_blocked(self) -> int:
         return self.efficacy.blocked
 
-    def get_detected_detectors(self, api_response):
+    def get_detected_detectors(self, api_response: dict[str, Any]) -> list[str]:
         """
         Extracts a list of detector names where "detected" is True.
 
@@ -222,7 +228,7 @@ class AIGuardManager:
 
         return detected_detectors
 
-    def get_detected_detectors_with_details(self, api_response):
+    def get_detected_detectors_with_details(self, api_response: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Extracts a list of detectors where "detected" is True along with their details.
 
@@ -246,7 +252,7 @@ class AIGuardManager:
 
         return detected_detectors
 
-    def get_detected_with_detail(self, api_response) -> dict[str, list[str]]:
+    def get_detected_with_detail(self, api_response: Mapping[str, Any]) -> dict[str, list[str]]:
         """
         Extracts a list of detectors and what they detected.
         This should return a dictionary with keys for each detector name where "detected" is true.
@@ -396,7 +402,7 @@ class AIGuardManager:
                         detected_with_details[detector].append(str(details["data"]))
         return detected_with_details
 
-    def update_detected_counts(self, detected_detectors: Mapping[str, list[str]]):
+    def update_detected_counts(self, detected_detectors: Mapping[str, list[str]]) -> None:
         # TODO: May want to replace the "prompt_injection" key with "malicious-prompt"
         with self._lock:
             self.detected_detectors.update(detected_detectors.keys())
@@ -435,7 +441,7 @@ class AIGuardManager:
                         for language in languages:
                             self.detected_code_languages[language] += 1
 
-    def update_test_labels(self, test: TestCase, label: str):
+    def update_test_labels(self, test: TestCase, label: str) -> None:
         """
         Update the test labels with the given label if it is not already present.
         This is used to add labels based on detected detectors.
@@ -464,7 +470,7 @@ class AIGuardManager:
             if self.debug:
                 print(f"\t{DARK_GREEN}Added label: {label}{RESET}")
 
-    def update_test_labels_from_expected_detectors(self, test: TestCase):
+    def update_test_labels_from_expected_detectors(self, test: TestCase) -> None:
         """
         Update the test labels based on the expected_detectors field in the test case.
         If the test case has labels, this just adds to them from expected_detectors.
@@ -502,7 +508,7 @@ class AIGuardManager:
         except Exception as e:
             print(f"{DARK_RED}Error updating test labels from expected_detectors: {e}{RESET}")
 
-    def labels_from_actual_detectors(self, actual_detectors: dict):
+    def labels_from_actual_detectors(self, actual_detectors: Mapping[str, Any]) -> list[str]:
         """
         Ensure actual_detectors is normalized so that topic names are always in the topic:<topic-name> format
         Extracts labels from the actual detectors detected in the response.
@@ -565,7 +571,7 @@ class AIGuardManager:
     # TODO: Need add_false_positive and add_false_negative methods to
     # AIGuardManager.  Have it update fp and fn counts and labels (rather than doing that throughout this code)
     # , and also keep a collection of the TestCase objects that had false positives or false negatives.
-    def report_call_results(self, test: TestCase, messages: list[dict[str, str]], response):
+    def report_call_results(self, test: TestCase, messages: list[dict[str, str]], response: Response) -> None:
         if response is None:
             print(f"\n\t{DARK_YELLOW}Service failed with no response.{RESET}")
             return
@@ -646,7 +652,7 @@ class AIGuardManager:
                     f"\t{DARK_YELLOW}Messages:\n{DARK_RED}{formatted_json_str(messages[:2])}{RESET}"
                 )  # Show only the first 2 messages for brevity
 
-    def print_summary(self):
+    def print_summary(self) -> None:
         if not self.efficacy.total_calls:
             print(f"{DARK_YELLOW}No AI Guard calls made.{RESET}")
             return
@@ -700,7 +706,7 @@ class AIGuardManager:
 
         self.efficacy.print_errors()
 
-    def _ai_guard_data(self, data: dict):
+    def _ai_guard_data(self, data: dict[str, Any]) -> Response:
         if self.debug:
             print(f"\nCalling AI Guard with Data: {formatted_json_str(data)}")
             if self.service == "aidr":
@@ -722,7 +728,7 @@ class AIGuardManager:
         request_id = response.json().get("request_id", "unavailable")
         # Handle response
         if response.status_code == 202:
-            status_code, response = poll_request(
+            status_code, response = poll_request(  # type: ignore[assignment]
                 request_id, max_attempts=self.max_poll_attempts, verbose=self.verbose, service=self.service
             )
 
@@ -737,17 +743,17 @@ class AIGuardManager:
 
         return response
 
-    def _convert_to_dict(self, obj):
+    def _convert_to_dict(self, obj: Any) -> dict[str, Any]:
         """
         Helper function to convert an object to a dictionary, omitting empty elements.
         """
         if isinstance(obj, BaseModel):
-            return {k: v for k, v in obj.dict().items() if v not in (None, {}, [], "")}
+            return {k: v for k, v in obj.model_dump().items() if v not in (None, {}, [], "")}
         elif hasattr(obj, "__dict__"):
             return {k: v for k, v in vars(obj).items() if v not in (None, {}, [], "")}
         return {}
 
-    def aidr_service(self, recipe: str, messages: list[dict[str, str]]):
+    def aidr_service(self, recipe: str, messages: list[dict[str, str]]) -> Response:
         """
         Call AIDR service with v1beta/guard endpoint format.
         AIDR requires messages wrapped in an 'input' object and doesn't support overrides.
@@ -759,7 +765,7 @@ class AIGuardManager:
 
         return self._ai_guard_data(data)
 
-    def ai_guard_test(self, test: TestCase):
+    def ai_guard_test(self, test: TestCase) -> Response:
         """
         Prepare the data for AI Guard API call based on the test case.
         This includes setting overrides, messages, and recipe.
@@ -803,7 +809,7 @@ class AIGuardManager:
         data = {"recipe": test.get_recipe(), "messages": test.messages, "debug": self.debug}
 
         if enabled_detectors or self.use_labels_as_detectors or self.report_any_topic:
-            overrides = {"ignore_recipe": True}
+            overrides: dict[str, Any] = {"ignore_recipe": True}
 
             prompt_injection = {
                 # TODO: How is if test.settings.overrides.prompt_injection, then use action from there.
@@ -846,7 +852,7 @@ class AIGuardManager:
 
         return self._ai_guard_data(data)
 
-    def ai_guard_service(self, recipe: str, messages: list[dict[str, str]]):
+    def ai_guard_service(self, recipe: str, messages: list[dict[str, str]]) -> Response:
         data = {"recipe": recipe, "messages": messages, "debug": self.debug}
 
         return self._ai_guard_data(data)
@@ -858,18 +864,20 @@ class AIGuardTests:
     settings: Settings
     tests: list[TestCase]
 
-    def __init__(self, settings: Settings, aig: AIGuardManager, args, tests: list[TestCase] | None = None):
+    def __init__(
+        self, settings: Settings, aig: AIGuardManager, args: Namespace, tests: list[TestCase] | None = None
+    ) -> None:
         self.settings = settings if settings else Settings()
         self.aig = aig
         self.tests = tests if tests else []
         self.args = args
 
-    def load_from_file(self, filename: str):
+    def load_from_file(self, filename: str) -> None:
         """Load the test file and return an instance of AIGuardTestFile."""
 
         # If the system_prompt and/or recipe is given on the command line, use it.
         ## NOTE: DON'T force the system prompt unless --force-system-prompt is set.
-        ## Settings.system_prompt should be set up acording to those rules so we don't
+        ## Settings.system_prompt should be set up according to those rules so we don't
         ## need to check for that here - if it's in settings, use it, otherwise don't.
         system_prompt = self.settings.system_prompt
 
@@ -990,6 +998,7 @@ class AIGuardTests:
                 testcase.ensure_recipe(self.args.recipe)
             else:
                 recipe = self.settings.recipe if self.settings else defaults.default_recipe  # "pangea_prompt_guard"
+                assert recipe is not None
                 testcase.ensure_recipe(recipe)
 
             # Ensure we have a labels list
@@ -1060,13 +1069,13 @@ class AIGuardTests:
                     )
                 test_case_enabled_detectors: list[str] = []
                 global_settings_enabled_detectors: list[str] = []
-                if testcase.settings and getattr(testcase.settings, "overrides", None):
+                if testcase.settings and testcase.settings.overrides:
                     test_case_enabled_detectors = testcase.settings.overrides.get_enabled_detector_labels() or []
                     # TODO: Check this attribute in ai_guard_test and use it for enabled detectors/topics if present.
                     # TODO: Move setting of testcase.enabled_override_detectors into TestCase::__init__
                     testcase.enabled_override_detectors = test_case_enabled_detectors
                     effective_enabled_detectors = test_case_enabled_detectors
-                elif self.settings and getattr(self.settings, "overrides", None):
+                elif self.settings and self.settings.overrides:
                     global_settings_enabled_detectors = self.settings.overrides.get_enabled_detector_labels() or []
                     if global_settings_enabled_detectors:
                         effective_enabled_detectors = global_settings_enabled_detectors
@@ -1094,7 +1103,7 @@ class AIGuardTests:
 
             self.tests.append(testcase)
 
-    def process_all_prompts(self, args, aig):
+    def process_all_prompts(self, args: Namespace, aig: AIGuardManager) -> None:
         """
         Reads a single prompt or a file, then calls the appropriate service
         using concurrency.
@@ -1104,7 +1113,7 @@ class AIGuardTests:
         semaphore = Semaphore(max_workers)
 
         @rate_limited(args.rps)
-        def process_prompt(aig, test: TestCase, index, total_rows):
+        def process_prompt(aig: AIGuardManager, test: TestCase, index: int, total_rows: int) -> None:
             with semaphore:
                 try:
                     progress = (index + 1) / total_rows * 100
@@ -1133,9 +1142,9 @@ class AIGuardTests:
                         "index": getattr(test, "index", None),
                         "label": getattr(test, "label", None),
                     }
-                    aig.add_error_response("unavailable", request_data, mock_response)
+                    aig.add_error_response("unavailable", request_data, cast("Response", mock_response))
 
-        def process_prompts():
+        def process_prompts() -> None:
             print(f"\nProcessing {len(self.tests)} prompts with {max_workers} workers")
             total_rows = len(self.tests)
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -1226,7 +1235,7 @@ class AIGuardTests:
                 if not prompt_field or not injection_field:
                     print(f"Error: Required columns not found. Available columns: {list(normalized_fieldnames.keys())}")
                     return
-                prompts = [
+                prompts: list[tuple[str, str, bool | Any, list[object]]] = [
                     (
                         remove_outer_quotes(json.dumps(row[system_prompt_field].replace("\n", " ").replace("\r", " "))),
                         remove_outer_quotes(json.dumps(row[prompt_field].replace("\n", " ").replace("\r", " "))),
