@@ -1,7 +1,13 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 from .log_fields import LogFields
 from .overrides import Overrides
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @dataclass
@@ -85,11 +91,11 @@ class Settings:
         self.overrides = overrides
         self.log_fields = log_fields
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Settings(system_prompt={self.system_prompt!r}, recipe={self.recipe!r}, overrides={self.overrides!r}, log_fields={self.log_fields!r})"
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "Settings":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> Settings:
         """
         Hydrate a Settings instance from a raw dict.
         """

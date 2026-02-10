@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 from .detectors import (
     CodeDetection,
@@ -10,6 +13,9 @@ from .detectors import (
     SecretsDetection,
     Topic,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @dataclass
@@ -60,7 +66,7 @@ class Overrides:
         return detector_labels
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "Overrides":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> Overrides:
         """
         Hydrate an Overrides instance from a raw dict.
         """

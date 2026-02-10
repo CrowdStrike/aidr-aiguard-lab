@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 from aidr_aiguard_lab.config.settings import Settings
 from aidr_aiguard_lab.defaults import defaults
@@ -137,16 +140,14 @@ class AnalyzerResponse:
     confidence: float
 
 
-@dataclass
-class DetectorData:
+class DetectorData(BaseModel):
     action: str
-    analyzer_responses: list[AnalyzerResponse] = field(default_factory=list)
+    analyzer_responses: list[AnalyzerResponse] = Field(default_factory=list)
 
 
-@dataclass
-class DetectorResult:
+class DetectorResult(BaseModel):
     detected: bool = False
-    data: DetectorData = field(default_factory=DetectorData)
+    data: DetectorData = Field(default_factory=lambda: DetectorData(action=""))
 
 
 # Re-insert the TopicResponse class
@@ -230,18 +231,18 @@ class TestCase:
     Internal helper: lists detectors enabled through settings.overrides if
     present.
     """
-    label: list[str] | None = field(default_factory=list)
+    label: list[str] = Field(default_factory=list)
     """Optional labels for the test case."""
     index: int | None = None
     """Optional index of the test case in the input, useful for tracking."""
 
     def __init__(
         self,
-        messages: list[dict],
-        label=None,
+        messages: list[dict[str, str]],
+        label: list[str] | str | dict[str, str] | None = None,
         settings: Settings | None = None,
-        expected_detectors: dict | None = None,
-    ):
+        expected_detectors: dict[str, Any] | None = None,
+    ) -> None:
         self.messages = messages
         self.enabled_override_detectors = []  # Always set in AIGuardTests:load_from_file() for now.
 
@@ -249,13 +250,14 @@ class TestCase:
         if label is None:
             self.label = []
         elif isinstance(label, dict):
-            self.label = label  # Allow kind/tag dicts to pass through
+            # Allow kind/tag dicts to pass through
+            self.label = label  # type: ignore[assignment]
         elif isinstance(label, list):
             if not all(isinstance(lbl, str) for lbl in label):
                 raise ValueError("All labels in the list must be strings.")
             self.label = label
         elif isinstance(label, str):
-            self.label = label
+            self.label = label  # type: ignore[assignment]
         else:
             raise ValueError("Label must be a list of strings, a dict, or a string.")
 
@@ -353,19 +355,19 @@ class TestCase:
         """Returns True if a recipe is present and valid, otherwise False."""
         return isinstance(self.settings, Settings) and isinstance(self.settings.recipe, str)
 
-    def ensure_system_message(self, default_prompt: str):
+    def ensure_system_message(self, default_prompt: str) -> None:
         """Ensures that a 'system' message is present, adding it to the beginning if not already present."""
         if not self.has_system_message():
             self.messages.insert(0, {"role": "system", "content": default_prompt})
 
-    def force_system_message(self, system_message: str):
+    def force_system_message(self, system_message: str) -> None:
         """Ensures the given system message is the first message, replacing any existing system message."""
         # Remove any existing system message
         self.messages = [msg for msg in self.messages if msg.get("role") != "system"]
         # Insert the new system message at the beginning
         self.messages.insert(0, {"role": "system", "content": system_message})
 
-    def ensure_recipe(self, default_recipe: str):
+    def ensure_recipe(self, default_recipe: str) -> None:
         """Ensures that a recipe is set, using the default if no recipe is already present."""
         if self.settings is None:
             self.settings = Settings()
@@ -390,13 +392,13 @@ class TestCase:
         self.label = filtered
         return self.label
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"TestCase(settings={self.settings!r}, messages={self.messages!r})"
 
     @classmethod
     # TODO: REVIEW ALL from_dict methods to ensure they are consistent and correct.
     # Add more isinstance checks to ensure that the data is in the expected format.
-    def from_dict(cls, data: dict) -> TestCase:
+    def from_dict(cls, data: dict[str, Any]) -> TestCase:
         """
         Hydrate a TestCase instance from a raw dict.
         """

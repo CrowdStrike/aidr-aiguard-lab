@@ -1,4 +1,10 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 @dataclass
@@ -7,7 +13,7 @@ class CodeDetection:
     action: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "CodeDetection":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> CodeDetection:
         if not data:
             return cls()
         return cls(
@@ -23,7 +29,7 @@ class Competitors:
     competitors: list[str] | None = None
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "Competitors":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> Competitors:
         if not data:
             return cls()
         return cls(**data)
@@ -36,7 +42,7 @@ class LanguageDetection:
     languages: list[str] | None = None
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "LanguageDetection":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> LanguageDetection:
         if not data:
             return cls()
         return cls(**data)
@@ -50,7 +56,7 @@ class MaliciousEntity:
     domain: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "MaliciousEntity":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> MaliciousEntity:
         if not data:
             return cls()
         return cls(**data)
@@ -86,7 +92,7 @@ class PIIEntity:
     us_ssn: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "PIIEntity":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> PIIEntity:
         if not data:
             return cls()
         return cls(**data)
@@ -98,7 +104,7 @@ class PromptInjection:
     action: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "PromptInjection":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> PromptInjection:
         if not data:
             return cls()
         return cls(**data)
@@ -136,7 +142,7 @@ class SecretsDetection:
     pangea_token: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "SecretsDetection":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> SecretsDetection:
         if not data:
             return cls()
         return cls(**data)
@@ -150,7 +156,7 @@ class Topic:
     topics: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict | None) -> "Topic":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> Topic:
         if not data:
             return cls()
         return cls(**data)

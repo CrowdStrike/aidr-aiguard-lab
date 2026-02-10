@@ -5,9 +5,15 @@ import threading
 import time
 from collections import deque
 from datetime import datetime
+from typing import TYPE_CHECKING, Any, cast
 
 from aidr_aiguard_lab.defaults import defaults
 from aidr_aiguard_lab.utils.colors import DARK_RED, DARK_YELLOW, RESET
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping
+
+    from requests import Response
 
 
 def remove_topic_prefix(labels: list[str]) -> list[str]:
@@ -71,7 +77,7 @@ def normalize_topics_and_detectors(
     return normalized, invalid
 
 
-def apply_synonyms(labels, synonyms, replacement):
+def apply_synonyms(labels: str | list[str], synonyms: list[str], replacement: str) -> list[str]:
     """
     Replace any label in labels that matches a synonym in synonyms with the specified replacement.
     Remove duplicates from the resulting list.
@@ -82,11 +88,11 @@ def apply_synonyms(labels, synonyms, replacement):
     return list(set(replacement if label in synonyms else label for label in labels if isinstance(label, str)))
 
 
-def formatted_json_str(json_data: dict) -> str:
+def formatted_json_str(json_data: Mapping[str, Any] | list[Any]) -> str:
     return json.dumps(json_data, indent=4)
 
 
-def get_duration(response, verbose=False):
+def get_duration(response: Response, verbose: bool = False) -> float:
     try:
         if response is None:
             return 0
@@ -110,7 +116,7 @@ def get_duration(response, verbose=False):
         return 0
 
 
-def print_response(messages: list[dict[str, str]], response, result_only=False):
+def print_response(messages: list[dict[str, str]], response: Response, result_only: bool = False) -> None:
     """Utility to neatly print the API response."""
     try:
         if response is None:
@@ -142,7 +148,7 @@ def remove_outer_quotes(s: str) -> str:
     return s
 
 
-def unescape_and_unquote(value):
+def unescape_and_unquote(value: str) -> str:
     """
     Handles strings with multiple layers of quoting and escape sequences:
     1. Unescapes escape sequences (e.g., \\" to ").
@@ -162,9 +168,9 @@ def unescape_and_unquote(value):
 _RATE_LIMITER_STATE: dict[float, dict[str, object]] = {}
 
 
-def rate_limited(max_per_second: float):
+def rate_limited(max_per_second: float) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
-    Thread‑safe decorator that enforces a *global* requests‑per‑second cap.
+    Thread-safe decorator that enforces a *global* requests-per-second cap.
 
     Any function wrapped with the same ``max_per_second`` value shares a
     single token bucket across every thread and module.
@@ -180,14 +186,14 @@ def rate_limited(max_per_second: float):
 
     window = 1.0  # sliding window in seconds
     state = _RATE_LIMITER_STATE.setdefault(max_per_second, {"lock": threading.Lock(), "calls": deque()})
-    lock: threading.Lock = state["lock"]
-    call_times: deque = state["calls"]
+    lock = cast("threading.Lock", state["lock"])
+    call_times = cast("deque[float]", state["calls"])
 
-    def decorator(fn):
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
         import functools
 
         @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             while True:
                 with lock:
                     now = time.perf_counter()

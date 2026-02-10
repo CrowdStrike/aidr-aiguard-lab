@@ -8,7 +8,7 @@ import time
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from tzlocal import get_localzone
 
@@ -28,6 +28,9 @@ from aidr_aiguard_lab.utils.utils import (
 )
 
 if TYPE_CHECKING:
+    from argparse import Namespace
+    from collections.abc import Callable, Mapping
+
     from requests.models import Response
 
     from aidr_aiguard_lab.testcase.testcase import TestCase
@@ -36,13 +39,15 @@ if TYPE_CHECKING:
 class ErrorRequestResponse:
     """Container for storing error request and response pairs."""
 
-    def __init__(self, request_id: str, request_data: dict, response: Response):
+    def __init__(self, request_id: str, request_data: Mapping[str, Any], response: Response):
         self.request_id = request_id  # Request ID from the API call
         self.request_data = request_data  # JSON request data
         self.response = response  # Response object
 
 
 class EfficacyTracker:
+    end_time: float | None = None
+
     class FailedTestCase:
         def __init__(
             self, test: TestCase, expected_label: str = "", detector_seen: str = "", detector_not_seen: str = ""
@@ -54,9 +59,9 @@ class EfficacyTracker:
 
     def __init__(
         self,
-        args=None,
+        args: Namespace | None = None,
         keep_tp_and_tn_tests: bool = False,  # whether to keep copies of TP and TN test case objs for reporting later
-    ):
+    ) -> None:
         self.start_time = time.time()
         self.end_time = None
         self.args = args
@@ -73,14 +78,14 @@ class EfficacyTracker:
         self.duration_sum = 0.0
         self.total_calls = 0
         # Per-detector tracking
-        self.per_detector_tp = Counter()
-        self.per_detector_fp = Counter()
-        self.per_detector_fn = Counter()
-        self.per_detector_tn = Counter()
+        self.per_detector_tp = Counter[str]()
+        self.per_detector_fp = Counter[str]()
+        self.per_detector_fn = Counter[str]()
+        self.per_detector_tn = Counter[str]()
 
         # Initialize label counts and stats
-        self.label_counts: Counter = Counter()
-        self.label_stats: defaultdict = defaultdict(lambda: {"FP": 0, "FN": 0})
+        self.label_counts = Counter[str]()
+        self.label_stats = defaultdict[str, dict[str, int]](lambda: {"FP": 0, "FN": 0})
 
         # Save collections of false positives, false negatives
         # for reporting (fps_out and fns_out).
@@ -101,10 +106,10 @@ class EfficacyTracker:
         # Initialize error tracking
         # TODO: Modify AIGuardManager to track these here.
         self.error_responses: list[ErrorRequestResponse] = []
-        self.errors: Counter = Counter()
+        self.errors = Counter[int]()
         self.blocked = 0
 
-    def add_false_positive(self, test: TestCase, detector_seen: str, expected_label: str):
+    def add_false_positive(self, test: TestCase, detector_seen: str, expected_label: str) -> None:
         """
         Add a test case to the false positives collection.
         This is used to track test cases where no detection was expected
@@ -126,7 +131,7 @@ class EfficacyTracker:
             print(f"{DARK_RED}Test:{index}:FP: expected_label '{expected_label}' but detected '{detector_seen}'")
             print(f"\t{DARK_YELLOW}Messages:\n{DARK_RED}{formatted_json_str(test.messages[:3])}{RESET}")
 
-    def add_true_negative(self, test: TestCase, detector_not_seen: str, expected_label: str = "benign"):
+    def add_true_negative(self, test: TestCase, detector_not_seen: str, expected_label: str = "benign") -> None:
         """
         TODO: MAY NOT WANT TO DO THIS - COULD BE NOISY (at least not keep every test case)
         Add a test case to the true positives collection.
@@ -148,7 +153,7 @@ class EfficacyTracker:
             print(f"{DARK_GREEN}TN: expected_label '{expected_label}' detected '{detector_not_seen}'")
             print(f"\t{DARK_YELLOW}Messages:\n{DARK_GREEN}{formatted_json_str(test.messages[:3])}{RESET}")
 
-    def add_true_positive(self, test: TestCase, detector_seen: str, expected_label: str):
+    def add_true_positive(self, test: TestCase, detector_seen: str, expected_label: str) -> None:
         """
         Add a test case to the true positives collection.
         This is used to track test cases where a detection was expected
@@ -166,7 +171,7 @@ class EfficacyTracker:
             print(f"{DARK_GREEN}TP: expected_label '{expected_label}' detected '{detector_seen}'")
             print(f"\t{DARK_YELLOW}Messages:\n{DARK_GREEN}{formatted_json_str(test.messages[:3])}{RESET}")
 
-    def add_false_negative(self, test: TestCase, detector_not_seen: str, expected_label: str):
+    def add_false_negative(self, test: TestCase, detector_not_seen: str, expected_label: str) -> None:
         """
         Add a test case to the false negatives collection.
         This is used to track test cases where a detection was expected for
@@ -199,7 +204,7 @@ class EfficacyTracker:
         benign_labels: list[str] = defaults.benign_labels,
         malicious_prompt_labels: list[str] = defaults.malicious_prompt_labels,
         negative_labels: list[str] | None = None,
-    ):
+    ) -> tuple[bool, bool, list[str], list[str]]:
         """
         Update efficacy statistics by comparing expected and actual detector results.
         Return FP_DETECTED, FN_DETECTED, FP_NAMES, FN_NAMES
@@ -210,7 +215,7 @@ class EfficacyTracker:
                 Replace any test.labels that match something in the malicious_prompt_labels with “malicious-prompt”
                 Remove any duplicates from test.labels
             Failure to see a detection matching that label is a FN
-            Seeing a detection that doesn’t match a label on the test case is a FP
+            Seeing a detection that doesn't match a label on the test case is a FP
 
         Logic:
             detected_detectors_labels = AIG(test)
@@ -666,7 +671,7 @@ class EfficacyTracker:
 
         return all_metrics
 
-    def print_errors(self):
+    def print_errors(self) -> None:
         if len(self.errors) == 0:
             return
         if self.verbose:
@@ -686,7 +691,7 @@ class EfficacyTracker:
                     print(f"Error response: {error_pair}")
         # TODO: Make this happen as errors are added to the collection
         #       and flush to disk so callers can monitor errors in real-time.
-        if self.args.summary_report_file:
+        if self.args and self.args.summary_report_file:
             error_report_file = self.args.summary_report_file + ".errors.txt"
             with Path(error_report_file).open(mode="w") as f:
                 f.write("\nErrors:\n")
@@ -704,7 +709,7 @@ class EfficacyTracker:
                         f.write(f"Error in print_errors: {e}\n")
                         f.write(f"Error response: {error_pair}\n")
 
-    def print_stats(self, enabled_detectors: list[str] = None):
+    def print_stats(self, enabled_detectors: list[str] | None = None) -> None:
         """Print a summary of the efficacy statistics.
         Print default reports, and any requested by the user.
         summary_report_file is the file to write the summary report to.
@@ -714,7 +719,10 @@ class EfficacyTracker:
         TODO: Add create_summary_csv() support as is done in prompt-lab.
         """
 
-        def _print_all_stats(writeln):
+        if enabled_detectors is None:
+            enabled_detectors = []
+
+        def _print_all_stats(writeln: Callable[[str], None]) -> None:
             # Strip out helper/pseudo‑detector labels that should never get their own stats section
             if "benign" in enabled_detectors:
                 enabled_detectors.remove("benign")
@@ -737,9 +745,10 @@ class EfficacyTracker:
                 writeln(f"Input dataset: {self.args.input_file}")
             writeln(f"Service: {defaults.ai_guard_service}")
             writeln(f"Total Calls: {self.total_calls}")
-            writeln(f"Requests per second: {self.args.rps}")
+            writeln(f"Requests per second: {self.args.rps if self.args else 0}")
             writeln(f"Average duration: {metrics['overall']['avg_duration']:.4f} seconds")
-            writeln(f"Total duration: {self.end_time - self.start_time:.2f} seconds")
+            if self.end_time and self.start_time:
+                writeln(f"Total duration: {self.end_time - self.start_time:.2f} seconds")
             writeln(f"\n{RED}Errors: {self.errors}{RESET}")
 
             for detector, det_metrics in metrics.items():
@@ -818,14 +827,14 @@ class EfficacyTracker:
         if self.args and self.args.summary_report_file:
             with Path(self.args.summary_report_file).open(mode="w") as f:
 
-                def writeln(line: str = ""):
+                def writeln(line: str = "") -> None:
                     print(line)
                     f.write(line + "\n")
 
                 _print_all_stats(writeln)
         else:
 
-            def writeln(line: str = ""):
+            def writeln(line: str = "") -> None:
                 print(line)
 
             _print_all_stats(writeln)
@@ -846,7 +855,7 @@ class EfficacyTracker:
             )
 
     @staticmethod
-    def print_cases_csv(out_csv: str, positive: bool, cases: list[EfficacyTracker.FailedTestCase]):
+    def print_cases_csv(out_csv: str, positive: bool, cases: list[EfficacyTracker.FailedTestCase]) -> str | None:
         """
         Print test cases (false positives, false negatives, etc.) to a CSV file.
 
@@ -914,7 +923,7 @@ class EfficacyTracker:
             return None
         return out_csv
 
-    def print_fns_csv(self, fns_out_csv: str):
+    def print_fns_csv(self, fns_out_csv: str) -> None:
         """Print false negatives to a CSV file."""
         if not fns_out_csv.endswith(".csv"):
             fns_out_csv += ".csv"
@@ -925,7 +934,7 @@ class EfficacyTracker:
                 f.write(f"{fn_case.test.index},{fn_case.expected_label},{fn_case.detector_not_seen}\n")
         print(f"{DARK_GREEN}False negatives written to {fns_out_csv}{RESET}")
 
-    def _print_label_stats(self, writeln):
+    def _print_label_stats(self, writeln: Callable[[str], None]) -> None:
         """Print label-wise false positives and false negatives."""
         writeln(f"\n--{GREEN}Label-wise False Positives and False Negatives:{RESET}--")
         if not self.label_stats:
@@ -936,46 +945,3 @@ class EfficacyTracker:
             fp = stats.get("FP", 0)
             fn = stats.get("FN", 0)
             writeln(f"\tLabel: {label}, False Positives: {fp}, False Negatives: {fn}")
-
-    @staticmethod
-    def is_subset(expected: dict, actual: dict):
-        """
-        Recursively checks if expected is a subset of actual.
-        - For dicts: all keys/values in expected must be present in actual (recursively).
-        - For lists: every item in expected must be present in actual (order doesn't matter).
-        - For other types: must be equal.
-        Ignores differences if the key name is "confidence".
-        Returns (True, None) if subset, else (False, (expected, actual)) for the first mismatch.
-        """
-        if expected is None:
-            return True, None  # Nothing expected, always a subset
-        if actual is None:
-            return False, (expected, actual)  # Expected something, got nothing
-
-        if isinstance(expected, dict) and isinstance(actual, dict):
-            for key, value in expected.items():
-                if key == "confidence":
-                    continue  # Ignore confidence differences
-                if key not in actual:
-                    return False, (f"Missing key '{key}'", expected, actual)
-                is_sub, mismatch = EfficacyTracker.is_subset(value, actual[key])
-                if not is_sub:
-                    return False, mismatch
-            return True, None
-        elif isinstance(expected, list) and isinstance(actual, list):
-            actual_copy = list(actual)
-            for exp_item in expected:
-                found = False
-                for idx, act_item in enumerate(actual_copy):
-                    is_sub, mismatch = EfficacyTracker.is_subset(exp_item, act_item)
-                    if is_sub:
-                        found = True
-                        del actual_copy[idx]
-                        break
-                if not found:
-                    return False, (exp_item, actual)
-            return True, None
-        else:
-            if expected != actual:
-                return False, (expected, actual)
-            return True, None

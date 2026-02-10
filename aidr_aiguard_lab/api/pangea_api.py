@@ -3,8 +3,9 @@ import json
 import os
 import sys
 import time
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import urljoin
 
 import requests
@@ -32,7 +33,6 @@ read_timeout = defaults.read_timeout
 DEFAULT_AIDR_METADATA = {
     "event_type": "input",
     "app_id": "AIG-lab",
-    # "actor_id": "test tool",
     "llm_provider": "test",
     "model": "GPT-6-super",
     "model_version": "6s",
@@ -44,7 +44,7 @@ DEFAULT_AIDR_METADATA = {
 }
 
 
-def create_error_response(status_code, message):
+def create_error_response(status_code: int, message: str) -> Response:
     """Create a mock error response."""
     response = Response()
     response.status_code = status_code
@@ -53,7 +53,7 @@ def create_error_response(status_code, message):
     return response
 
 
-def merge_aidr_metadata(data, aidr_config=None):
+def merge_aidr_metadata(data: dict[str, Any], aidr_config: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """
     Merge AIDR metadata into the request data.
 
@@ -68,14 +68,14 @@ def merge_aidr_metadata(data, aidr_config=None):
     metadata = DEFAULT_AIDR_METADATA.copy()
 
     # Deep copy extra_info to avoid modifying the default
-    metadata["extra_info"] = DEFAULT_AIDR_METADATA["extra_info"].copy()
+    metadata["extra_info"] = DEFAULT_AIDR_METADATA["extra_info"].copy()  # type: ignore[attr-defined]
 
     # Override with custom config if provided
     if aidr_config:
         for key, value in aidr_config.items():
             if key == "extra_info" and isinstance(value, dict):
                 # Merge extra_info specifically
-                metadata["extra_info"].update(value)
+                metadata["extra_info"].update(value)  # type: ignore[attr-defined]
             else:
                 metadata[key] = value
 
@@ -90,12 +90,12 @@ def merge_aidr_metadata(data, aidr_config=None):
 def pangea_post_api(
     service: Literal["aiguard", "aidr"],
     endpoint: str,
-    data,
-    skip_cache=False,
-    token=ai_guard_token,
-    base_url=base_url,
-    aidr_config=None,
-):
+    data: dict[str, Any],
+    skip_cache: bool = False,
+    token: str = ai_guard_token,  # type: ignore[assignment]
+    base_url: str = base_url,  # type: ignore[assignment]
+    aidr_config: Mapping[str, Any] | None = None,
+) -> Response:
     """
     Post to Pangea API with optional AIDR metadata injection.
 
@@ -128,7 +128,7 @@ def pangea_post_api(
         return create_error_response(400, f"Bad Request: {e}")
 
 
-def pangea_get_api(endpoint: str, token: str = ai_guard_token, base_url: str = base_url):
+def pangea_get_api(endpoint: str, token: str = ai_guard_token, base_url: str = base_url) -> Response:  # type: ignore[assignment]
     """GET request to Pangea API (used for polling)."""
     try:
         url = urljoin(base_url, endpoint)
@@ -141,7 +141,12 @@ def pangea_get_api(endpoint: str, token: str = ai_guard_token, base_url: str = b
         return create_error_response(400, f"Bad Request: {e}")
 
 
-def pangea_request(request_id, token=ai_guard_token, base_url=base_url, service="aidr"):
+def pangea_request(
+    request_id: str,
+    token: str = ai_guard_token,  # type: ignore[assignment]
+    base_url: str = base_url,  # type: ignore[assignment]
+    service: Literal["aiguard", "aidr"] = "aidr",
+) -> Response:
     """Poll a specific request by ID."""
     if service == "aidr":
         endpoint = f"{defaults.aidr_guard_poll_request_endpoint}/{request_id}"
@@ -150,7 +155,14 @@ def pangea_request(request_id, token=ai_guard_token, base_url=base_url, service=
     return pangea_get_api(endpoint, token=token, base_url=base_url)
 
 
-def poll_request(request_id, max_attempts=12, verbose=False, token=ai_guard_token, base_url=base_url, service="aidr"):
+def poll_request(
+    request_id: str,
+    max_attempts: int = 12,
+    verbose: bool = False,
+    token: str = ai_guard_token,  # type: ignore[assignment]
+    base_url: str = base_url,  # type: ignore[assignment]
+    service: Literal["aiguard", "aidr"] = "aidr",
+) -> tuple[str, Response | None]:
     """
     Poll status until 'Success' or non-202 result, or max attempts reached.
     """
