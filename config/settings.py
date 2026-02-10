@@ -1,17 +1,17 @@
 from dataclasses import dataclass
-from typing import Optional
-from .overrides import Overrides
+
 from .log_fields import LogFields
+from .overrides import Overrides
 
 
 @dataclass
 class Settings:
     """Class representing optional settings."""
 
-    recipe: Optional[str] = None
-    system_prompt: Optional[str] = None
-    overrides: Optional[Overrides] = None
-    log_fields: Optional[LogFields] = None
+    recipe: str | None = None
+    system_prompt: str | None = None
+    overrides: Overrides | None = None
+    log_fields: LogFields | None = None
 
     # Want to support a different format than what promptguard uses:
     # Json file contains a "tests" array of objects, each containing a messages array that is a chat history to be sent to AI guard/Prompt guard.
@@ -70,10 +70,10 @@ class Settings:
 
     def __init__(
         self,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         recipe: str = "pangea_prompt_guard",
-        overrides: Optional[Overrides] = None,
-        log_fields: Optional[LogFields] = None,
+        overrides: Overrides | None = None,
+        log_fields: LogFields | None = None,
     ):
         if not isinstance(system_prompt, (str, type(None))):
             raise ValueError(f"system_prompt must be a string or None, got {type(system_prompt).__name__}")
@@ -89,7 +89,7 @@ class Settings:
         return f"Settings(system_prompt={self.system_prompt!r}, recipe={self.recipe!r}, overrides={self.overrides!r}, log_fields={self.log_fields!r})"
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "Settings":
+    def from_dict(cls, data: dict | None) -> "Settings":
         """
         Hydrate a Settings instance from a raw dict.
         """
@@ -98,6 +98,10 @@ class Settings:
         return cls(
             system_prompt=data.get("system_prompt"),
             recipe=data.get("recipe", None),
-            overrides=Overrides.from_dict(data.get("overrides")) if hasattr(Overrides, "from_dict") else data.get("overrides"),
-            log_fields=LogFields.from_dict(data.get("log_fields")) if hasattr(LogFields, "from_dict") else data.get("log_fields"),
+            overrides=Overrides.from_dict(data.get("overrides"))
+            if hasattr(Overrides, "from_dict")
+            else data.get("overrides"),
+            log_fields=LogFields.from_dict(data.get("log_fields"))
+            if hasattr(LogFields, "from_dict")
+            else data.get("log_fields"),
         )

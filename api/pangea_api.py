@@ -1,16 +1,19 @@
+import getpass
+import json
 import os
 import sys
 import time
-import json
+from pathlib import Path
 from typing import Literal
-import requests
-import getpass
-import urllib3
-from requests.models import Response
 from urllib.parse import urljoin
-from utils.colors import DARK_RED, DARK_YELLOW, DARK_BLUE, DARK_GREEN, RED, RESET
-from defaults import defaults
+
+import requests
+import urllib3
 from dotenv import load_dotenv
+from requests.models import Response
+
+from defaults import defaults
+from utils.colors import DARK_BLUE, DARK_GREEN, DARK_RED, DARK_YELLOW, RED, RESET
 
 # Disable urllib3 SSL warnings for corporate environments (Zscaler, etc.)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -36,8 +39,8 @@ DEFAULT_AIDR_METADATA = {
     "source_ip": "74.244.51.54",
     "extra_info": {
         "actor_name": getpass.getuser(),  # Gets current username
-        "app_name": os.path.splitext(os.path.basename(sys.argv[0]))[0] if sys.argv else "aiguard_lab.py"
-    }
+        "app_name": Path(sys.argv[0]).stem if sys.argv else "aiguard_lab.py",
+    },
 }
 
 
@@ -84,8 +87,15 @@ def merge_aidr_metadata(data, aidr_config=None):
     return data
 
 
-def pangea_post_api(service: Literal["aiguard", "aidr"], endpoint: str, data, skip_cache=False, token=ai_guard_token, base_url=base_url,
-                    aidr_config=None):
+def pangea_post_api(
+    service: Literal["aiguard", "aidr"],
+    endpoint: str,
+    data,
+    skip_cache=False,
+    token=ai_guard_token,
+    base_url=base_url,
+    aidr_config=None,
+):
     """
     Post to Pangea API with optional AIDR metadata injection.
 
@@ -104,10 +114,7 @@ def pangea_post_api(service: Literal["aiguard", "aidr"], endpoint: str, data, sk
             data = merge_aidr_metadata(data, aidr_config)
 
         url = urljoin(base_url, endpoint)
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
         if skip_cache:
             headers["x-pangea-skipcache"] = "true"
 

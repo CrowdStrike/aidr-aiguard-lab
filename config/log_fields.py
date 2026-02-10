@@ -1,17 +1,16 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class LogFields:
-    citations: Optional[str] = None
-    extra_info: Optional[str] = None
-    model: Optional[str] = None
-    source: Optional[str] = None
-    tools: Optional[str] = None
+    citations: str | None = None
+    extra_info: str | None = None
+    model: str | None = None
+    source: str | None = None
+    tools: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "LogFields":
+    def from_dict(cls, data: dict | None) -> "LogFields":
         """
         Hydrate a LogFields instance from a raw dict.
         """

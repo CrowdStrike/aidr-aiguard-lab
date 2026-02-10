@@ -4,20 +4,20 @@ benign_str = "benign"
 
 
 valid_topics = [
-            "toxicity",
-            "self-harm-and-violence",
-            "roleplay",
-            "weapons",
-            "criminal-conduct",
-            "sexual",
-            "financial-advice",
-            "legal-advice",
-            "religion",
-            "politics",
-            "health-coverage",
-            "negative-sentiment",
-            "gibberish",
-        ]
+    "toxicity",
+    "self-harm-and-violence",
+    "roleplay",
+    "weapons",
+    "criminal-conduct",
+    "sexual",
+    "financial-advice",
+    "legal-advice",
+    "religion",
+    "politics",
+    "health-coverage",
+    "negative-sentiment",
+    "gibberish",
+]
 valid_topics_str = ", ".join(valid_topics)
 topic_str = "topic"
 not_topic_str = "not-topic"
@@ -30,21 +30,21 @@ not_topic_prefix = "not-topic:"
 # The code should allow both formats, but intenally always normalize to the "topic:<topic-name>" format.
 # The valid_topics needs to be without the "topic:" prefix for use in the Overrides for the Topic detector.
 valid_detectors = [
-        "malicious-prompt",
-        "topic",
-        "code-detection",
-        "competitors",
-        "language-detection",
-        "malicious-entity",
-        "pii-entity",
-        "secrets-detection",
-        # TODO: NOTE: Only malicious-prompt and topic are fully supported right now.
-        # NOTE: Using the overrides parameter names with undercore converted to hyphen for detector names.
-        # NOTE: EXCEPT that we use "malicious-prompt" instead of "prompt-injection" for the malicious prompt detector.
-        # NOTE: The AI Guard API Overrides are out of date - many were changed to topics and API is not yet updated.
-        # NOTE: As the overrides parameter names change, need to update the detector names here.
-        # NOTE: And the TestCase class and associated other clasees.
-        ]
+    "malicious-prompt",
+    "topic",
+    "code-detection",
+    "competitors",
+    "language-detection",
+    "malicious-entity",
+    "pii-entity",
+    "secrets-detection",
+    # TODO: NOTE: Only malicious-prompt and topic are fully supported right now.
+    # NOTE: Using the overrides parameter names with undercore converted to hyphen for detector names.
+    # NOTE: EXCEPT that we use "malicious-prompt" instead of "prompt-injection" for the malicious prompt detector.
+    # NOTE: The AI Guard API Overrides are out of date - many were changed to topics and API is not yet updated.
+    # NOTE: As the overrides parameter names change, need to update the detector names here.
+    # NOTE: And the TestCase class and associated other clasees.
+]
 # Add topic detectors prefixed with "topic:" to the valid detectors
 # We also accept just the topic name without "topic:" prefix
 valid_detectors.extend([f"{topic_prefix}{topic}" for topic in valid_topics])
@@ -97,7 +97,7 @@ topic_thresholds = {
     "politics": topic_threshold,
     "health-coverage": topic_threshold,
     "negative-sentiment": topic_threshold,
-    "gibberish": topic_threshold
+    "gibberish": topic_threshold,
 }
 
 # The built-in recipes that are available in the AI Guard service.
@@ -108,7 +108,7 @@ default_recipes = [
     "pangea_llm_response_guard",
     "pangea_agent_pre_plan_guard",
     "pangea_agent_pre_tool_guard",
-    "pangea_agent_post_tool_guard"
+    "pangea_agent_post_tool_guard",
 ]
 default_recipes_str = ", ".join(default_recipes)
 # Default is no recipe because you override detectors and topics
