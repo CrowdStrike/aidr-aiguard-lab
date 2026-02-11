@@ -28,11 +28,11 @@ from aidr_aiguard_lab.utils.utils import (
 )
 
 if TYPE_CHECKING:
-    from argparse import Namespace
     from collections.abc import Callable, Mapping
 
     from requests.models import Response
 
+    from aidr_aiguard_lab._types import AppArgs
     from aidr_aiguard_lab.testcase.testcase import TestCase
 
 
@@ -59,7 +59,7 @@ class EfficacyTracker:
 
     def __init__(
         self,
-        args: Namespace | None = None,
+        args: AppArgs | None = None,
         keep_tp_and_tn_tests: bool = False,  # whether to keep copies of TP and TN test case objs for reporting later
     ) -> None:
         self.start_time = time.time()
