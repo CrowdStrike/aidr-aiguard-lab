@@ -36,12 +36,11 @@ from aidr_aiguard_lab.utils.utils import (
 )
 
 if TYPE_CHECKING:
-    from argparse import Namespace
     from collections.abc import Mapping
 
     from requests import Response
 
-# Detector name mapping for different services
+    from aidr_aiguard_lab._types import AppArgs
 
 
 class AIGuardManager:
@@ -55,12 +54,13 @@ class AIGuardManager:
             "topic": "topic",
         },
     }
+    """Detector name mapping for different services"""
 
     service: Literal["aiguard", "aidr"] = "aidr"
 
     def __init__(
         self,
-        args: Namespace,
+        args: AppArgs,
         skip_cache: bool = defaults.ai_guard_skip_cache,
         endpoint: str = defaults.ai_guard_endpoint,
     ):
@@ -865,7 +865,7 @@ class AIGuardTests:
     tests: list[TestCase]
 
     def __init__(
-        self, settings: Settings, aig: AIGuardManager, args: Namespace, tests: list[TestCase] | None = None
+        self, settings: Settings, aig: AIGuardManager, args: AppArgs, tests: list[TestCase] | None = None
     ) -> None:
         self.settings = settings if settings else Settings()
         self.aig = aig
@@ -1103,7 +1103,7 @@ class AIGuardTests:
 
             self.tests.append(testcase)
 
-    def process_all_prompts(self, args: Namespace, aig: AIGuardManager) -> None:
+    def process_all_prompts(self, args: AppArgs, aig: AIGuardManager) -> None:
         """
         Reads a single prompt or a file, then calls the appropriate service
         using concurrency.
@@ -1173,8 +1173,6 @@ class AIGuardTests:
 
         # Single prompt
         if args.prompt:
-            prompt = args.prompt
-
             if not recipe:
                 recipe = defaults.default_recipe
 
@@ -1182,7 +1180,7 @@ class AIGuardTests:
 
             for rec in recipes:
                 settings = Settings(system_prompt=system_prompt, recipe=rec)
-                test = TestCase(messages=[{"role": "user", "content": prompt}], settings=settings)
+                test = TestCase(messages=[{"role": "user", "content": args.prompt}], settings=settings)
                 if system_prompt and system_prompt != "":
                     test.ensure_system_message(system_prompt)
                 test.ensure_recipe(rec)
@@ -1205,6 +1203,7 @@ class AIGuardTests:
             return
 
         # Otherwise, we read from input_file
+        assert args.input_file is not None
         input_file = args.input_file
         file_extension = Path(input_file).suffix.lower()
 
@@ -1244,9 +1243,9 @@ class AIGuardTests:
                     )
                     for row in csvreader
                 ]
-                for prompt in prompts:
-                    test = TestCase(messages=[{"role": "user", "content": prompt[1]}])
-                    test.ensure_system_message(prompt[0])
+                for user_prompt, system_prompt, _, _ in prompts:
+                    test = TestCase(messages=[{"role": "user", "content": user_prompt}])
+                    test.ensure_system_message(system_prompt)
                     test.ensure_recipe(recipe)
                     if self.args.assume_tps or self.args.assume_tns:
                         if self.args.assume_tps:
@@ -1270,8 +1269,9 @@ class AIGuardTests:
             prompts = []
             with Path(input_file).open() as file:
                 for prompt in file:
-                    prompt.strip().replace("\n", "").replace("\r", "")
-                    test = TestCase(messages=[{"role": "user", "content": prompt}])
+                    test = TestCase(
+                        messages=[{"role": "user", "content": prompt.strip().replace("\n", "").replace("\r", " ")}]
+                    )
                     if system_prompt and system_prompt != "":
                         test.ensure_system_message(system_prompt)
                 if self.args.assume_tps or self.args.assume_tns:

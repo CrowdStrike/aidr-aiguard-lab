@@ -9,6 +9,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "argparse ==1.4.0",
+    "cyclopts ==4.5.2",
     "dotenv ==0.9.9",
     "pip-system-certs ==5.3",
     "pydantic ==2.12.5",
