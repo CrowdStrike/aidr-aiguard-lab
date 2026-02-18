@@ -4,16 +4,16 @@ import json
 import threading
 import time
 from collections import deque
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
 from aidr_aiguard_lab.defaults import defaults
-from aidr_aiguard_lab.utils.colors import DARK_RED, DARK_YELLOW, RESET
+from aidr_aiguard_lab.utils.colors import DARK_YELLOW, RESET
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable, Sequence
 
-    from requests import Response
+    from crowdstrike_aidr.models import PangeaResponse
+    from crowdstrike_aidr.models.ai_guard import GuardChatCompletionsResponse
 
 
 def remove_topic_prefix(labels: list[str]) -> list[str]:
@@ -88,57 +88,43 @@ def apply_synonyms(labels: str | list[str], synonyms: list[str], replacement: st
     return list(set(replacement if label in synonyms else label for label in labels if isinstance(label, str)))
 
 
-def formatted_json_str(json_data: Mapping[str, Any] | list[Any]) -> str:
+def formatted_json_str(json_data: object) -> str:
     return json.dumps(json_data, indent=4)
 
 
-def get_duration(response: Response, verbose: bool = False) -> float:
-    try:
-        if response is None:
-            return 0
-        response_json = response.json()
-        if response_json is None:
-            return 0
-        request_time = response_json.get("request_time", None)
-        response_time = response_json.get("response_time", None)
-        if request_time is None or response_time is None:
-            return 0
-        request_time = datetime.fromisoformat(request_time.replace("Z", "+00:00"))
-        response_time = datetime.fromisoformat(response_time.replace("Z", "+00:00"))
-        duration = response_time - request_time
-        return duration.total_seconds()
-    except Exception as e:
-        if verbose:
-            print(f"\nError in get_duration response: {response}")
-            errors = getattr(e, "errors", [])
-            for err in errors:
-                print(f"\t{err.detail} \n")
+def get_duration(response: PangeaResponse | None, verbose: bool = False) -> float:
+    if response is None:
         return 0
 
+    request_time = response.request_time
+    response_time = response.response_time
+    if request_time is None or response_time is None:
+        return 0
 
-def print_response(messages: list[dict[str, str]], response: Response, result_only: bool = False) -> None:
+    duration = response_time - request_time
+    return duration.total_seconds()
+
+
+def print_response(
+    messages: Sequence[object], response: GuardChatCompletionsResponse, result_only: bool = False
+) -> None:
     """Utility to neatly print the API response."""
-    try:
-        if response is None:
-            print(f"{DARK_YELLOW}Service failed with no response.{RESET}")
-            return
 
-        formatted_json_response = formatted_json_str(response.json())
+    formatted_json_response = response.model_dump_json(indent=4)
 
-        print(f"messages: {messages[:1]}")
-        if response.status_code == 200:
-            formatted_json_result = formatted_json_str(response.json().get("result"))
+    print(f"messages: {messages[:1]}")
+    if response.status == "Success":
+        assert response.result is not None
+        formatted_json_result = response.result.model_dump_json(indent=4)
 
-            if result_only:
-                print(f"{formatted_json_result}\n")
-            else:
-                print(f"{formatted_json_response}\n")
+        if result_only:
+            print(f"{formatted_json_result}\n")
         else:
-            # Handle error
-            print(f"{DARK_YELLOW}Service failed with status code: {response.status_code}.{RESET}")
-            print(f"{formatted_json_response}{RESET}")
-    except Exception as e:
-        print(f"\n{DARK_RED}Error in print_response: {e}\nmessages was: {messages}{RESET}")
+            print(f"{formatted_json_response}\n")
+    else:
+        # Handle error
+        print(f"{DARK_YELLOW}Service failed with status: {response.status}.{RESET}")
+        print(f"{formatted_json_response}{RESET}")
 
 
 def remove_outer_quotes(s: str) -> str:

@@ -9,7 +9,7 @@
 
   languages.python = {
     enable = true;
-    version = "3.10";
+    version = "3.12";
     uv = {
       enable = true;
       sync = {
