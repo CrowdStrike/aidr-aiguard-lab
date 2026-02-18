@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
 from aidr_aiguard_lab.config.settings import Settings
 from aidr_aiguard_lab.defaults import defaults
 from aidr_aiguard_lab.utils.utils import normalize_topics_and_detectors
+
+if TYPE_CHECKING:
+    from aidr_aiguard_lab.api.pangea_api import Message
 
 """
 Want expected_detectors to look like what AI Guard returns, e.g.:
@@ -224,7 +227,7 @@ class TestCase:
     """Class representing a test case with settings and messages."""
 
     settings: Settings | None = None
-    messages: list[dict[str, str]] = field(default_factory=list)
+    messages: list[Message] = field(default_factory=list)
     expected_detectors: ExpectedDetectors = field(default_factory=ExpectedDetectors)
     enabled_override_detectors: list[str] = field(default_factory=list)
     """
@@ -238,7 +241,7 @@ class TestCase:
 
     def __init__(
         self,
-        messages: list[dict[str, str]],
+        messages: list[Message],
         label: list[str] | str | dict[str, str] | None = None,
         settings: Settings | None = None,
         expected_detectors: dict[str, Any] | None = None,

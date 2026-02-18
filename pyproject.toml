@@ -6,14 +6,14 @@ authors = [
     { name = "Bruce McCorkendale", email = "bruce.mccorkendale@crowdstrike.com" },
 ]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "argparse ==1.4.0",
+    "crowdstrike-aidr ==0.4.3",
     "cyclopts ==4.5.2",
     "dotenv ==0.9.9",
     "pip-system-certs ==5.3",
     "pydantic ==2.12.5",
-    "requests ==2.32.5",
     "tzlocal ==5.3.1",
 ]
 
@@ -21,7 +21,6 @@ dependencies = [
 dev = [
     "mypy ==1.19.1",
     "ruff ==0.15.0",
-    "types-requests ==2.32.4.20260107",
 ]
 
 [build-system]

@@ -20,7 +20,7 @@ It supports both **malicious-prompt** detection and **topic-based** detection.
 
 ## Prerequisites
 
-- Python v3.10 or greater
+- Python v3.12 or greater
 - uv v0.9.17 or greater
 - Clone and Install Dependencies:
    ```bash
@@ -32,7 +32,7 @@ It supports both **malicious-prompt** detection and **topic-based** detection.
   1. Obtain an AIDR API token from your AIDR deployment
   2. Set the AIDR-specific environment variables:
       ```bash
-      export CS_AIDR_BASE_URL="https://api.eu-1.crowdstrike.com"
+      export CS_AIDR_BASE_URL_TEMPLATE="https://api.eu-1.crowdstrike.com/aidr/aiguard"
       export CS_AIDR_TOKEN="pts_[...]"
       ```
 
@@ -46,7 +46,7 @@ It supports both **malicious-prompt** detection and **topic-based** detection.
 
       Then populate it.
    
-   - NOTE: If you get 400 or 403 errors, the cause is most likely incorrect values for CS_AIDR_BASE_URL and/or CS_AIDR_TOKEN.
+   - NOTE: If you get 400 or 403 errors, the cause is most likely incorrect values for CS_AIDR_BASE_URL_TEMPLATE and/or CS_AIDR_TOKEN.
 
 ## Usage
 
@@ -70,7 +70,7 @@ uv run aidr_aiguard_lab --prompt "Ignore all prior instructions..." --detectors 
 
 - Specify a system prompt to inovke conformance/non-conformance testing:
 ```bash
-uv run aidr_aiguard_lab --prompt "Talk to me about dragons and sorcerers." --system_prompt "You are a financial advisor bot."  --detectors malicious-prompt --assume-tps
+uv run aidr_aiguard_lab --prompt "Talk to me about dragons and sorcerers." --system_prompt "You are a financial advisor bot." --detectors malicious-prompt --assume-tps
 ```
 
 - Check which topics could be detected in a given input:

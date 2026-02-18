@@ -7,16 +7,16 @@ from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from threading import Semaphore
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel
+from crowdstrike_aidr.models import PangeaResponse
+from pydantic import AwareDatetime, BaseModel
 
-from aidr_aiguard_lab.api.pangea_api import base_url, pangea_post_api, poll_request
-from aidr_aiguard_lab.config.log_fields import LogFields
-from aidr_aiguard_lab.config.overrides import Overrides
+from aidr_aiguard_lab._exceptions import RequestError
+from aidr_aiguard_lab.api.pangea_api import GuardChatCompletionsParams, GuardInput, Message, guard_chat_completions
 from aidr_aiguard_lab.config.settings import Settings
 from aidr_aiguard_lab.defaults import defaults
-from aidr_aiguard_lab.manager.efficacy_tracker import EfficacyTracker, ErrorRequestResponse
+from aidr_aiguard_lab.manager.efficacy_tracker import EfficacyTracker
 from aidr_aiguard_lab.testcase.testcase import TestCase
 from aidr_aiguard_lab.utils.colors import (
     DARK_GREEN,
@@ -36,40 +36,30 @@ from aidr_aiguard_lab.utils.utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
-    from requests import Response
+    from crowdstrike_aidr.models.ai_guard import Detectors, GuardChatCompletionsResponse
 
     from aidr_aiguard_lab._types import AppArgs
 
+DETECTOR_NAME_MAPPING = {
+    "malicious_prompt": "malicious-prompt",
+    "topic": "topic",
+}
+"""Detector name mapping for different services"""
+
 
 class AIGuardManager:
-    DETECTOR_NAME_MAPPING = {
-        "aidr": {
-            "malicious_prompt": "malicious-prompt",
-            "topic": "topic",
-        },
-        "aiguard": {
-            "prompt_injection": "malicious-prompt",
-            "topic": "topic",
-        },
-    }
-    """Detector name mapping for different services"""
-
-    service: Literal["aiguard", "aidr"] = "aidr"
+    aidr_config: GuardChatCompletionsParams | None = None
 
     def __init__(
         self,
         args: AppArgs,
         skip_cache: bool = defaults.ai_guard_skip_cache,
-        endpoint: str = defaults.ai_guard_endpoint,
     ):
         self._lock = threading.Lock()
 
-        self.endpoint = defaults.aidr_guard_endpoint
-
         # Parse AIDR config if provided
-        self.aidr_config = None
         if args.aidr_config:
             self.aidr_config = self._parse_aidr_config(args.aidr_config)
 
@@ -160,7 +150,7 @@ class AIGuardManager:
         self.detected_languages = Counter[str]()
         self.detected_code_languages = Counter[str]()
 
-    def _parse_aidr_config(self, aidr_config_arg: str) -> dict[str, Any] | None:
+    def _parse_aidr_config(self, aidr_config_arg: str) -> GuardChatCompletionsParams | None:
         """
         Parse AIDR config from JSON string or file path.
 
@@ -188,12 +178,17 @@ class AIGuardManager:
             print(f"{DARK_RED}Error parsing AIDR config JSON: {e}{RESET}")
             return None
 
-    def add_error_response(self, request_id: str, request: Mapping[str, Any], response: Response) -> None:
-        """TODO: Allow error responses to be added to an output file and flushed to disk as they come in"""
+    def add_error_response(self, request_id: str, request: Mapping[str, Any], response: PangeaResponse) -> None:
         with self.efficacy._lock:
-            self.efficacy.errors[response.status_code] += 1
-            error_pair = ErrorRequestResponse(request_id=request_id, request_data=request, response=response)
-            self.efficacy.error_responses.append(error_pair)
+            self.efficacy.errors[response.status] += 1
+            self.efficacy.error_responses.append(
+                RequestError(
+                    message="Error calling AI Guard",
+                    request_id=request_id,
+                    request_body=request,
+                    response_body=response,
+                )
+            )
 
     def add_duration(self, duration: float) -> None:
         with self.efficacy._lock:
@@ -223,12 +218,12 @@ class AIGuardManager:
 
         if "result" in api_response and "detectors" in api_response["result"]:
             for detector, details in api_response["result"]["detectors"].items():
-                if details.get("detected", False):  # Check if "detected" is True
+                if details is not None and details.get("detected", False):  # Check if "detected" is True
                     detected_detectors.append(detector)
 
         return detected_detectors
 
-    def get_detected_detectors_with_details(self, api_response: dict[str, Any]) -> list[dict[str, Any]]:
+    def get_detected_detectors_with_details(self, api_response: Mapping[str, Any]) -> list[dict[str, Any]]:
         """
         Extracts a list of detectors where "detected" is True along with their details.
 
@@ -247,7 +242,7 @@ class AIGuardManager:
 
         if "result" in api_response and "detectors" in api_response["result"]:
             for detector, details in api_response["result"]["detectors"].items():
-                if details.get("detected", False):  # Check if "detected" is True
+                if details is not None and details.get("detected", False):  # Check if "detected" is True
                     detected_detectors.append({"detector": detector, "details": details})
 
         return detected_detectors
@@ -373,7 +368,7 @@ class AIGuardManager:
 
         if "result" in api_response and "detectors" in api_response["result"]:
             for detector, details in api_response["result"]["detectors"].items():
-                if details.get("detected", False):
+                if details is not None and details.get("detected", False):
                     # Handle prompt_injection separately to extract analyzer and confidence
                     if detector == "prompt_injection":
                         for analyzer_response in details["data"].get("analyzer_responses", []):
@@ -508,7 +503,7 @@ class AIGuardManager:
         except Exception as e:
             print(f"{DARK_RED}Error updating test labels from expected_detectors: {e}{RESET}")
 
-    def labels_from_actual_detectors(self, actual_detectors: Mapping[str, Any]) -> list[str]:
+    def labels_from_actual_detectors(self, actual_detectors: Detectors) -> list[str]:
         """
         Ensure actual_detectors is normalized so that topic names are always in the topic:<topic-name> format
         Extracts labels from the actual detectors detected in the response.
@@ -522,13 +517,10 @@ class AIGuardManager:
                 print(f"{DARK_RED}No actual detectors found in response.{RESET}")
                 return labels
 
-            # Get the appropriate detector mapping for the current service
-            detector_mapping = self.DETECTOR_NAME_MAPPING.get(self.service, {})
-
-            for detector, details in actual_detectors.items():
-                if details.get("detected", False):
+            for detector, details in actual_detectors.model_dump().items():
+                if details is not None and details.get("detected", False):
                     # Map the detector name to the standard label
-                    mapped_label = detector_mapping.get(detector)
+                    mapped_label = DETECTOR_NAME_MAPPING.get(detector)
 
                     if self.debug:
                         print(f"{DARK_YELLOW}Detector: {detector}, Mapped label: {mapped_label}{RESET}")
@@ -571,21 +563,17 @@ class AIGuardManager:
     # TODO: Need add_false_positive and add_false_negative methods to
     # AIGuardManager.  Have it update fp and fn counts and labels (rather than doing that throughout this code)
     # , and also keep a collection of the TestCase objects that had false positives or false negatives.
-    def report_call_results(self, test: TestCase, messages: list[dict[str, str]], response: Response) -> None:
-        if response is None:
-            print(f"\n\t{DARK_YELLOW}Service failed with no response.{RESET}")
+    def report_call_results(
+        self, test: TestCase, messages: Sequence[object], response: GuardChatCompletionsResponse
+    ) -> None:
+        if response.status != "Success":
+            print(f"\n\t{DARK_YELLOW}Service failed with status: {response.status}.{RESET}")
             return
 
-        if response.status_code != 200:
-            # TODO: Where do we record the error?  I think it's already recored but check.
-            print(f"\n\t{DARK_YELLOW}Service failed with status code: {response.status_code}.{RESET}")
-            return
-
-        summary = response.json().get("summary", "None")
-        result = response.json().get("result", {})
-        blocked = result.get("blocked", False)
-        if self.service == "aidr":
-            guard_output = result.get("guard_output")
+        summary = response.summary
+        result = response.result
+        blocked = result.blocked if result is not None else False
+        guard_output = result.guard_output if result is not None else {}
 
         if blocked:
             self.efficacy.blocked += 1
@@ -597,13 +585,12 @@ class AIGuardManager:
                 print(f"\t{DARK_GREEN}Allowed")
 
             print(f"\tSummary: {summary}")
-            if self.service == "aidr":
-                print(f"\tguard_output:\n\t{formatted_json_str(guard_output)}")
+            print(f"\tguard_output:\n\t{formatted_json_str(guard_output)}")
             print(f"{RESET}")
 
         if self.debug:
-            print(f"\tResponse.status_code: {response.status_code}")
-            print(f"\tResponse:\n{formatted_json_str(response.json())}{RESET}")
+            print(f"\tResponse.status: {response.status}")
+            print(f"\tResponse:\n{formatted_json_str(response)}{RESET}")
 
         # Extract info on detected detectors and their sub-details
         # This will return a list of dictionaries with the detector name and its details.
@@ -615,9 +602,10 @@ class AIGuardManager:
         # [
         #     {"detector": "topic", "details": {"detected": True, "data": {"topics": [{"topic": "negative-sentiment", "confidence": 1.0}]}}}]
         # ]
-        detected_detectors = self.get_detected_with_detail(response.json())
+        detected_detectors = self.get_detected_with_detail(response.model_dump())
         # Also grab the raw detectors dict from the API response for label extraction
-        raw_detectors = response.json().get("result", {}).get("detectors", {})
+        assert response.result is not None
+        raw_detectors = response.result.detectors
         if self.debug:
             print(f"\t{DARK_YELLOW}Detected Detectors: {formatted_json_str(detected_detectors)}{RESET}")
             print(f"\t{DARK_YELLOW}Raw Detectors: {formatted_json_str(raw_detectors)}{RESET}")
@@ -706,40 +694,23 @@ class AIGuardManager:
 
         self.efficacy.print_errors()
 
-    def _ai_guard_data(self, data: dict[str, Any]) -> Response:
+    def _ai_guard_data(self, guard_input: GuardInput) -> GuardChatCompletionsResponse:
         if self.debug:
-            print(f"\nCalling AI Guard with Data: {formatted_json_str(data)}")
-            if self.service == "aidr":
-                print(f"{DARK_YELLOW}base_url: {base_url}{RESET}")
-                print(f"{DARK_YELLOW}endpoint {self.endpoint}{RESET}")
-                if self.aidr_config:
-                    print(f"{DARK_YELLOW}AIDR Config Override: {formatted_json_str(self.aidr_config)}{RESET}")
+            print(f"\nCalling AI Guard with Data: {formatted_json_str(guard_input)}")
+            if self.aidr_config:
+                print(f"{DARK_YELLOW}AIDR Config Override: {formatted_json_str(self.aidr_config)}{RESET}")
 
-        # Pass aidr_config to pangea_post_api
-        response = pangea_post_api(
-            self.service,
-            self.endpoint,
-            data,
-            skip_cache=self.skip_cache,
-            aidr_config=self.aidr_config if self.service == "aidr" else None,
-        )
-
-        # Initialize request_id as unavailable
-        request_id = response.json().get("request_id", "unavailable")
-        # Handle response
-        if response.status_code == 202:
-            status_code, response = poll_request(  # type: ignore[assignment]
-                request_id, max_attempts=self.max_poll_attempts, verbose=self.verbose, service=self.service
-            )
+        response = guard_chat_completions(guard_input, aidr_config=self.aidr_config or {})
 
         duration = get_duration(response, verbose=self.verbose)
-
         if duration > 0:
             self.add_total_calls()
             self.add_duration(duration)
 
-        if response is not None and response.status_code != 200:
-            self.add_error_response(request_id, data, response)
+        if response.status != "Success":
+            self.add_error_response(
+                response.request_id, {"guard_input": guard_input, **(self.aidr_config or {})}, response
+            )
 
         return response
 
@@ -753,19 +724,10 @@ class AIGuardManager:
             return {k: v for k, v in vars(obj).items() if v not in (None, {}, [], "")}
         return {}
 
-    def aidr_service(self, recipe: str, messages: list[dict[str, str]]) -> Response:
-        """
-        Call AIDR service with v1beta/guard endpoint format.
-        AIDR requires messages wrapped in an 'input' object and doesn't support overrides.
-        """
-        data = {"guard_input": {"messages": messages}}
+    def aidr_service(self, messages: Sequence[Message]) -> GuardChatCompletionsResponse:
+        return self._ai_guard_data(GuardInput(messages=messages))
 
-        if self.debug:
-            print(f"{DARK_YELLOW}AIDR service: using v1beta format (no overrides){RESET}")
-
-        return self._ai_guard_data(data)
-
-    def ai_guard_test(self, test: TestCase) -> Response:
+    def ai_guard_test(self, test: TestCase) -> GuardChatCompletionsResponse:
         """
         Prepare the data for AI Guard API call based on the test case.
         This includes setting overrides, messages, and recipe.
@@ -799,63 +761,7 @@ class AIGuardManager:
                     enabled_topics.append(t)
             enabled_topics = remove_topic_prefix(enabled_topics)
 
-        # Use AIDR-specific service method
-        if self.service == "aidr":
-            if self.debug:
-                print(f"{DARK_YELLOW}AIDR service: skipping overrides{RESET}")
-            return self.aidr_service(test.get_recipe(), test.messages)
-
-        # Original AI Guard logic
-        data = {"recipe": test.get_recipe(), "messages": test.messages, "debug": self.debug}
-
-        if enabled_detectors or self.use_labels_as_detectors or self.report_any_topic:
-            overrides: dict[str, Any] = {"ignore_recipe": True}
-
-            prompt_injection = {
-                # TODO: How is if test.settings.overrides.prompt_injection, then use action from there.
-                "disabled": False,
-                "action": "block" if self.fail_fast else "report",
-            }
-
-            topic = {
-                "disabled": False,
-                # TODO: How is if test.settings.overrides.topic, then use action and topic_threshold from there.
-                "action": "report" if self.report_any_topic else "block",
-                "threshold": self.topic_threshold,
-                "topics": enabled_topics if enabled_topics else [],
-            }
-
-            if "malicious-prompt" in enabled_detectors:
-                # overrides.prompt_injection
-                overrides["prompt_injection"] = prompt_injection
-
-            if enabled_topics or self.report_any_topic:
-                # overrides.topic
-                overrides["topic"] = topic
-
-            data["overrides"] = overrides
-
-        elif test is not None and test.settings:
-            # TODO: No longer needed?  Especially once TestCase::__init__ does
-            # the right thing to load settings and overrides.
-            if test.settings.overrides and isinstance(test.settings.overrides, Overrides):
-                data["overrides"] = self._convert_to_dict(test.settings.overrides)
-                if self.debug:
-                    print(f"\nOverrides: {data['overrides'] if data['overrides'] else 'None'}")
-            elif test.settings.log_fields and isinstance(test.settings.log_fields, LogFields):
-                data["log_fields"] = self._convert_to_dict(test.settings.log_fields)
-            else:
-                print(
-                    f"{DARK_YELLOW}Warning: Overrides or LogFields are not "
-                    f"properly initialized for test:\n {test}{RESET}"
-                )
-
-        return self._ai_guard_data(data)
-
-    def ai_guard_service(self, recipe: str, messages: list[dict[str, str]]) -> Response:
-        data = {"recipe": recipe, "messages": messages, "debug": self.debug}
-
-        return self._ai_guard_data(data)
+        return self.aidr_service(test.messages)
 
 
 class AIGuardTests:
@@ -1123,26 +1029,22 @@ class AIGuardTests:
                     # but not sure if other methods will do so.
                     test.index = index + 1
                     response = aig.ai_guard_test(test)
-                    if response.status_code != 200 and aig.verbose:
+                    if response.status != "Success" and aig.verbose:
                         print_response(test.messages, response)
                     else:
                         aig.report_call_results(test, test.messages, response)
                 except Exception as e:
                     print(f"\n{DARK_RED}Error processing prompt {index + 1}/{total_rows}: {e}{RESET}")
-                    # Create a mock response for the exception case
-                    from types import SimpleNamespace
-
-                    mock_response = SimpleNamespace()
-                    mock_response.status_code = 500  # Internal Server Error
-                    mock_response.json = lambda err=str(e): {"error": str(err), "type": "exception"}
-                    mock_response.text = str(e)
-                    # Extract request data from test object
-                    request_data = {
-                        "messages": test.messages,
-                        "index": getattr(test, "index", None),
-                        "label": getattr(test, "label", None),
-                    }
-                    aig.add_error_response("unavailable", request_data, cast("Response", mock_response))
+                    aig.add_error_response(
+                        "unavailable",
+                        {"messages": test.messages, "index": test.index, "label": test.label},
+                        PangeaResponse(
+                            request_id="unavailable",
+                            request_time=AwareDatetime.now(),
+                            response_time=AwareDatetime.now(),
+                            status="Error",
+                        ),
+                    )
 
         def process_prompts() -> None:
             print(f"\nProcessing {len(self.tests)} prompts with {max_workers} workers")

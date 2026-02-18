@@ -8,7 +8,7 @@ import time
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from tzlocal import get_localzone
 
@@ -28,21 +28,11 @@ from aidr_aiguard_lab.utils.utils import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    from collections.abc import Callable
 
-    from requests.models import Response
-
+    from aidr_aiguard_lab._exceptions import RequestError
     from aidr_aiguard_lab._types import AppArgs
     from aidr_aiguard_lab.testcase.testcase import TestCase
-
-
-class ErrorRequestResponse:
-    """Container for storing error request and response pairs."""
-
-    def __init__(self, request_id: str, request_data: Mapping[str, Any], response: Response):
-        self.request_id = request_id  # Request ID from the API call
-        self.request_data = request_data  # JSON request data
-        self.response = response  # Response object
 
 
 class EfficacyTracker:
@@ -105,8 +95,8 @@ class EfficacyTracker:
 
         # Initialize error tracking
         # TODO: Modify AIGuardManager to track these here.
-        self.error_responses: list[ErrorRequestResponse] = []
-        self.errors = Counter[int]()
+        self.error_responses: list[RequestError] = []
+        self.errors = Counter[str]()
         self.blocked = 0
 
     def add_false_positive(self, test: TestCase, detector_seen: str, expected_label: str) -> None:
@@ -680,10 +670,10 @@ class EfficacyTracker:
                 try:
                     print(f"{DARK_YELLOW}Request ID:{RESET} {error_pair.request_id}")
                     print(f"{DARK_YELLOW}Request Data:{RESET}")
-                    formatted_json_request = json.dumps(error_pair.request_data, indent=4)
+                    formatted_json_request = json.dumps(error_pair.request_body, indent=4)
                     print(f"{formatted_json_request}")
                     print(f"{DARK_YELLOW}Response:{RESET}")
-                    formatted_json_error = json.dumps(error_pair.response.json(), indent=4)
+                    formatted_json_error = json.dumps(error_pair.response_body, indent=4)
                     print(f"{formatted_json_error}")
                     print("-" * 50)
                 except Exception as e:
@@ -699,10 +689,10 @@ class EfficacyTracker:
                     try:
                         f.write(f"Request ID: {error_pair.request_id}\n")
                         f.write("Request Data:\n")
-                        formatted_json_request = json.dumps(error_pair.request_data, indent=4)
+                        formatted_json_request = json.dumps(error_pair.request_body, indent=4)
                         f.write(f"{formatted_json_request}\n")
                         f.write("Response:\n")
-                        formatted_json_error = json.dumps(error_pair.response.json(), indent=4)
+                        formatted_json_error = json.dumps(error_pair.response_body, indent=4)
                         f.write(f"{formatted_json_error}\n")
                         f.write("-" * 50 + "\n")
                     except Exception as e:
@@ -743,7 +733,6 @@ class EfficacyTracker:
             writeln(f"CMD: {' '.join(sys.argv)}")
             if self.args and self.args.input_file:
                 writeln(f"Input dataset: {self.args.input_file}")
-            writeln(f"Service: {defaults.ai_guard_service}")
             writeln(f"Total Calls: {self.total_calls}")
             writeln(f"Requests per second: {self.args.rps if self.args else 0}")
             writeln(f"Average duration: {metrics['overall']['avg_duration']:.4f} seconds")
