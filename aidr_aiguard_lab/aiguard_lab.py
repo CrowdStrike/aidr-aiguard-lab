@@ -250,12 +250,6 @@ def main(
         print("Error: Argument --assume-tps is not allowed with --assume-tns")
         sys.exit(1)
 
-    # Determine injection helper
-    def determine_injection(labels: list[str]) -> bool:
-        """Heuristic to decide if this is injection or not based on labels."""
-        benign_labels_set = {"benign_auto", "benign"}
-        return not any(label in benign_labels_set for label in labels)  # Assume injection if not labeled as benign
-
     args = AppArgs(
         prompt=prompt,
         input_file=input_file,
