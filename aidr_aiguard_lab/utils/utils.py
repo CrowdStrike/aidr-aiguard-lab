@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 import threading
 import time
 from collections import deque
 from typing import TYPE_CHECKING, Any, cast
+
+from pydantic_core import to_json
 
 from aidr_aiguard_lab.defaults import defaults
 from aidr_aiguard_lab.utils.colors import DARK_YELLOW, RESET
@@ -89,7 +90,7 @@ def apply_synonyms(labels: str | list[str], synonyms: list[str], replacement: st
 
 
 def formatted_json_str(json_data: object) -> str:
-    return json.dumps(json_data, indent=4)
+    return to_json(json_data, indent=4).decode("utf-8")
 
 
 def get_duration(response: PangeaResponse | None, verbose: bool = False) -> float:

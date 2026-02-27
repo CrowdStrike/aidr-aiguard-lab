@@ -10,6 +10,8 @@ from aidr_aiguard_lab.defaults import defaults
 from aidr_aiguard_lab.utils.utils import normalize_topics_and_detectors
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from aidr_aiguard_lab.api.pangea_api import Message
 
 """
@@ -202,7 +204,6 @@ class ExpectedDetectors:
             else:
                 expected_labels.append("topic:any")
 
-        # Only supporting malicious-prompt and topic for now
         if self.code_detection and self.code_detection.detected:
             expected_labels.append("code")
 
@@ -228,6 +229,7 @@ class TestCase:
 
     settings: Settings | None = None
     messages: list[Message] = field(default_factory=list)
+    tools: list[object] = field(default_factory=list)
     expected_detectors: ExpectedDetectors = field(default_factory=ExpectedDetectors)
     enabled_override_detectors: list[str] = field(default_factory=list)
     """
@@ -241,12 +243,14 @@ class TestCase:
 
     def __init__(
         self,
-        messages: list[Message],
+        messages: Sequence[Message],
+        tools: Sequence[object] = [],
         label: list[str] | str | dict[str, str] | None = None,
         settings: Settings | None = None,
         expected_detectors: dict[str, Any] | None = None,
     ) -> None:
-        self.messages = messages
+        self.messages = list(messages)
+        self.tools = list(tools)
         self.enabled_override_detectors = []  # Always set in AIGuardTests:load_from_file() for now.
 
         # Flexible label initialization to allow dicts, lists, or strings
@@ -288,12 +292,12 @@ class TestCase:
                             ],
                         ),
                     )
-                elif name == "code_detection" and value is not None:
+                elif name == "code" and value is not None:
                     ed.code_detection = CodeResult(
                         detected=value.get("detected", False),
                         data=value["data"],
                     )
-                elif name == "language_detection" and value is not None:
+                elif name == "language" and value is not None:
                     ed.language_detection = DetectorResult(
                         detected=value.get("detected", False),
                         data=DetectorData(
@@ -396,7 +400,7 @@ class TestCase:
         return self.label
 
     def __repr__(self) -> str:
-        return f"TestCase(settings={self.settings!r}, messages={self.messages!r})"
+        return f"TestCase(settings={self.settings!r}, messages={self.messages!r}, tools={self.tools!r})"
 
     @classmethod
     # TODO: REVIEW ALL from_dict methods to ensure they are consistent and correct.
@@ -406,6 +410,7 @@ class TestCase:
         Hydrate a TestCase instance from a raw dict.
         """
         messages = data.get("messages", [])
+        tools = data.get("tools", [])
         # Hydrate settings if dict, otherwise pass through
         settings_data = data.get("settings")
         settings = (
@@ -433,6 +438,7 @@ class TestCase:
             raise ValueError("Labels must be a list of strings or a dict for kind/tag.")
         return cls(
             messages=messages,
+            tools=tools,
             label=labels,
             settings=settings,
             expected_detectors=expected_detectors,

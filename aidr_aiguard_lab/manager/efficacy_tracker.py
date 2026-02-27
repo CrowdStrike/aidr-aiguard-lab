@@ -185,6 +185,7 @@ class EfficacyTracker:
                 f"for expected_label:'{expected_label}'"
             )
             print(f"\t{DARK_YELLOW}Messages:\n{DARK_RED}{formatted_json_str(test.messages[:3])}{RESET}")
+            print(f"\t{DARK_YELLOW}Tools:\n{DARK_RED}{len(test.tools)}{RESET}")
 
     def update(
         self,
@@ -810,6 +811,7 @@ class EfficacyTracker:
                             f"Not Detected: {fn_case.detector_not_seen}"
                         )
                         writeln(f"\tMessages: {formatted_json_str(fn_case.test.messages[:3])}")
+                        writeln(f"\tTools: {len(fn_case.test.tools)}")
 
         """ print_stats() body here"""
         self.end_time = time.time()

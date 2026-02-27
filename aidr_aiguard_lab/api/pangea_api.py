@@ -27,6 +27,7 @@ class Message(TypedDict):
 
 class GuardInput(TypedDict):
     messages: Sequence[Message]
+    tools: Sequence[object]
 
 
 class ExtraInfo(TypedDict, total=False):

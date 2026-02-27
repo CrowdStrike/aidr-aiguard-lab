@@ -45,8 +45,12 @@ if TYPE_CHECKING:
 DETECTOR_NAME_MAPPING = {
     "malicious_prompt": "malicious-prompt",
     "topic": "topic",
+    "confidential_and_pii_entity": "confidential-and-pii-entity",
+    "malicious_entity": "malicious-entity",
+    "mcp_validation": "mcp-validation",
+    "secret_and_key_entity": "secret-and-key-entity",
 }
-"""Detector name mapping for different services"""
+"""Detector name mapping"""
 
 
 class AIGuardManager:
@@ -149,6 +153,9 @@ class AIGuardManager:
         self.detected_topics = Counter[str]()
         self.detected_languages = Counter[str]()
         self.detected_code_languages = Counter[str]()
+        self.detected_confidential_and_pii_entities = Counter[str]()
+        self.detected_mcp_validations = Counter[str]()
+        self.detected_secrets = Counter[str]()
 
     def _parse_aidr_config(self, aidr_config_arg: str) -> GuardChatCompletionsParams | None:
         """
@@ -203,49 +210,6 @@ class AIGuardManager:
 
     def get_blocked(self) -> int:
         return self.efficacy.blocked
-
-    def get_detected_detectors(self, api_response: dict[str, Any]) -> list[str]:
-        """
-        Extracts a list of detector names where "detected" is True.
-
-        Args:
-            api_response (dict): The API response JSON as a dictionary.
-
-        Returns:
-            list: A list of detector names where detection is True.
-        """
-        detected_detectors = []
-
-        if "result" in api_response and "detectors" in api_response["result"]:
-            for detector, details in api_response["result"]["detectors"].items():
-                if details is not None and details.get("detected", False):  # Check if "detected" is True
-                    detected_detectors.append(detector)
-
-        return detected_detectors
-
-    def get_detected_detectors_with_details(self, api_response: Mapping[str, Any]) -> list[dict[str, Any]]:
-        """
-        Extracts a list of detectors where "detected" is True along with their details.
-
-        Args:
-            api_response (dict): The API response JSON as a dictionary.
-
-        Returns:
-            list: A list of dictionaries containing the detector name and its details.
-            The details will include the "detected" status and any additional data.
-            For example, if "prompt_injection" is detected, it might look like:
-            ["prompt_injection": {"detected": True, "data": {...}}]
-            For "topic", it might look like:
-            ["topic": {"detected": True, "data": {"topics": [{"topic": "negative-sentiment", "confidence": 1.0}]}}]
-        """
-        detected_detectors = []
-
-        if "result" in api_response and "detectors" in api_response["result"]:
-            for detector, details in api_response["result"]["detectors"].items():
-                if details is not None and details.get("detected", False):  # Check if "detected" is True
-                    detected_detectors.append({"detector": detector, "details": details})
-
-        return detected_detectors
 
     def get_detected_with_detail(self, api_response: Mapping[str, Any]) -> dict[str, list[str]]:
         """
@@ -322,7 +286,7 @@ class AIGuardManager:
         }
 
         For code detection, it might look like this:
-        "code_detection": {
+        "code": {
             "detected": true,
             "data": {
                 "language": "fortran",
@@ -331,7 +295,7 @@ class AIGuardManager:
         }
 
         For language detection, it might look like this:
-        "language_detection": {
+        "language: {
             "detected": true,
             "data": {
                 "language": "fr",
@@ -388,7 +352,7 @@ class AIGuardManager:
                             topic_name = topic.get("topic")
                             if topic_name:
                                 detected_with_details[detector].append(topic_name)
-                    elif detector == "language_detection" or detector == "code_detection":
+                    elif detector == "language" or detector == "code":
                         language = details["data"].get("language")
                         if language:
                             detected_with_details[detector].append(language)
@@ -402,7 +366,7 @@ class AIGuardManager:
         with self._lock:
             self.detected_detectors.update(detected_detectors.keys())
             for detector in detected_detectors:
-                value = detected_detectors[detector]
+                value = detected_detectors.get(detector, [])
                 if detector == "prompt_injection":
                     analyzers = value
                     if analyzers:
@@ -416,25 +380,26 @@ class AIGuardManager:
                             else:
                                 print(f"{DARK_RED}Unexpected format for prompt_injection: {analyzer}{RESET}")
                 elif detector == "malicious_entity":
-                    entities = value
-                    if entities:
-                        for entity in entities:
-                            self.detected_malicious_entities[entity] += 1
+                    for entity in value:
+                        self.detected_malicious_entities[entity] += 1
                 elif detector == "topic":
-                    topics = value
-                    if topics:
-                        for topic in topics:
-                            self.detected_topics[topic] += 1
-                elif detector == "language_detection":
-                    languages = detected_detectors[detector]
-                    if languages:
-                        for language in languages:
-                            self.detected_languages[language] += 1
-                elif detector == "code_detection":
-                    languages = detected_detectors[detector]
-                    if languages:
-                        for language in languages:
-                            self.detected_code_languages[language] += 1
+                    for topic in value:
+                        self.detected_topics[topic] += 1
+                elif detector == "language":
+                    for language in value:
+                        self.detected_languages[language] += 1
+                elif detector == "code":
+                    for language in value:
+                        self.detected_code_languages[language] += 1
+                elif detector == "confidential_and_pii_entity":
+                    for entity in value:
+                        self.detected_confidential_and_pii_entities[entity] += 1
+                elif detector == "mcp_validation":
+                    for entity in value:
+                        self.detected_mcp_validations[entity] += 1
+                elif detector == "secret_and_key_entity":
+                    for entity in value:
+                        self.detected_secrets[entity] += 1
 
     def update_test_labels(self, test: TestCase, label: str) -> None:
         """
@@ -520,14 +485,12 @@ class AIGuardManager:
             for detector, details in actual_detectors.model_dump().items():
                 if details is not None and details.get("detected", False):
                     # Map the detector name to the standard label
-                    mapped_label = DETECTOR_NAME_MAPPING.get(detector)
+                    mapped_label = DETECTOR_NAME_MAPPING.get(detector, detector)
 
                     if self.debug:
                         print(f"{DARK_YELLOW}Detector: {detector}, Mapped label: {mapped_label}{RESET}")
 
-                    if mapped_label == "malicious-prompt":
-                        labels.append("malicious-prompt")
-                    elif detector == "topic":
+                    if detector == "topic":
                         topics = details.get("data", {}).get("topics", [])
                         for topic in topics:
                             topic_name = topic.get("topic")
@@ -542,7 +505,9 @@ class AIGuardManager:
                                         f"{DARK_RED}Invalid topic '{topic_name}' detected. "
                                         f"Valid topics are: {', '.join(self.valid_topics)}{RESET}"
                                     )
-                    # TODO: Add support for other detectors
+                    else:
+                        labels.append(mapped_label)
+
         except KeyError as e:
             print(f"{DARK_RED}KeyError extracting labels from actual detectors: {e}{RESET}")
         except Exception as e:
@@ -564,7 +529,11 @@ class AIGuardManager:
     # AIGuardManager.  Have it update fp and fn counts and labels (rather than doing that throughout this code)
     # , and also keep a collection of the TestCase objects that had false positives or false negatives.
     def report_call_results(
-        self, test: TestCase, messages: Sequence[object], response: GuardChatCompletionsResponse
+        self,
+        test: TestCase,
+        messages: Sequence[object],
+        tools: Sequence[object],
+        response: GuardChatCompletionsResponse,
     ) -> None:
         if response.status != "Success":
             print(f"\n\t{DARK_YELLOW}Service failed with status: {response.status}.{RESET}")
@@ -636,9 +605,11 @@ class AIGuardManager:
                 print(f"\t{DARK_RED}Test:{index}:False Negatives: {fn_names}{RESET}")
 
             if self.verbose:
+                # Show only the first 2 messages for brevity
                 print(
                     f"\t{DARK_YELLOW}Messages:\n{DARK_RED}{formatted_json_str(messages[:2])}{RESET}"
-                )  # Show only the first 2 messages for brevity
+                    f"\t{DARK_YELLOW}Tools:\n{DARK_RED}{len(tools)}{RESET}"
+                )
 
     def print_summary(self) -> None:
         if not self.efficacy.total_calls:
@@ -724,8 +695,8 @@ class AIGuardManager:
             return {k: v for k, v in vars(obj).items() if v not in (None, {}, [], "")}
         return {}
 
-    def aidr_service(self, messages: Sequence[Message]) -> GuardChatCompletionsResponse:
-        return self._ai_guard_data(GuardInput(messages=messages))
+    def aidr_service(self, messages: Sequence[Message], tools: Sequence[object]) -> GuardChatCompletionsResponse:
+        return self._ai_guard_data(GuardInput(messages=messages, tools=tools))
 
     def ai_guard_test(self, test: TestCase) -> GuardChatCompletionsResponse:
         """
@@ -761,7 +732,7 @@ class AIGuardManager:
                     enabled_topics.append(t)
             enabled_topics = remove_topic_prefix(enabled_topics)
 
-        return self.aidr_service(test.messages)
+        return self.aidr_service(test.messages, test.tools)
 
 
 class AIGuardTests:
@@ -872,8 +843,8 @@ class AIGuardTests:
                 labels = label_field
             elif isinstance(label_field, str):
                 labels = [label_field]
-            # print(f"Loading test case: {test_data}")
             messages = test_data.get("messages")
+            tools = test_data.get("tools", [])
             if not isinstance(messages, list) or not all(isinstance(msg, dict) for msg in messages):
                 print(
                     f"{DARK_RED}Test Case:{idx}:Warning: Invalid messages format "
@@ -886,6 +857,7 @@ class AIGuardTests:
                 "index": idx,
                 "label": labels,
                 "messages": messages,
+                "tools": tools,
                 "settings": test_data.get("settings") or self.settings,
                 "expected_detectors": test_data.get("expected_detectors") or None,
             }
@@ -1032,7 +1004,7 @@ class AIGuardTests:
                     if response.status != "Success" and aig.verbose:
                         print_response(test.messages, response)
                     else:
-                        aig.report_call_results(test, test.messages, response)
+                        aig.report_call_results(test, test.messages, test.tools, response)
                 except Exception as e:
                     print(f"\n{DARK_RED}Error processing prompt {index + 1}/{total_rows}: {e}{RESET}")
                     aig.add_error_response(

@@ -1,7 +1,6 @@
 # CrowdStrike AIDR AI Guard Lab
 
 The **AI Guard Lab Tool** is used to evaluate the efficacy of the CrowdStrike AIDR AI Guard API against labeled datasets. 
-It supports both **malicious-prompt** detection and **topic-based** detection.
 
 - Labels on dataset **TestCase**s indicate expected detectors. 
 - **NOTE** Labels corresponding to detectors that are not enabled are treated as not present for efficacy calculations (TP/FP/TN/FN).
@@ -10,7 +9,7 @@ It supports both **malicious-prompt** detection and **topic-based** detection.
 
 ## Features
 
-- Evaluate **malicious-prompt** and **topic-based** detectors.
+- Evaluate all AIDR detectors.
 - Accepts labeled datasets in JSONL format with simple "label" expectations.
 - Configurable detector set via `--detectors` parameter.
 - Reports precision, recall, false positives/negatives, and other metrics.
@@ -24,7 +23,7 @@ It supports both **malicious-prompt** detection and **topic-based** detection.
 - uv v0.9.17 or greater
 - Clone and Install Dependencies:
    ```bash
-   git clone https://github.com/crowdstrike/aidr-aiguard-lab.git
+   git clone https://github.com/CrowdStrike/aidr-aiguard-lab.git
    cd aidr-aiguard-lab
    uv sync
    ```
@@ -46,7 +45,7 @@ It supports both **malicious-prompt** detection and **topic-based** detection.
 
       Then populate it.
    
-   - NOTE: If you get 400 or 403 errors, the cause is most likely incorrect values for CS_AIDR_BASE_URL_TEMPLATE and/or CS_AIDR_TOKEN.
+   - NOTE: If you get 400 or 403 errors, the cause is most likely incorrect values for `CS_AIDR_BASE_URL_TEMPLATE` and/or `CS_AIDR_TOKEN`.
 
 ## Usage
 
@@ -111,7 +110,7 @@ Default Metadata:
 }
    ```
 
-NOTE: The actor_name is automatically populated with your current system username.
+NOTE: The `actor_name` is automatically populated with your current system username.
 
 Customizing AIDR Metadata
 You can override the default AIDR metadata using the `--aidr-config` flag with either a JSON string or a path to a JSON file:
@@ -121,7 +120,6 @@ Using JSON string:
    ```bash
 uv run aidr_aiguard_lab \
   --input-file data/test_dataset.jsonl \
-  --service aidr \
   --aidr-config '{"app_id": "MyApp", "model": "GPT-4o", "extra_info": {"environment": "production"}}'
    ```
 
@@ -147,7 +145,6 @@ Then run:
 ```bash
 uv run aidr_aiguard_lab \
   --input-file data/test_dataset.jsonl \
-  --service aidr \
   --aidr-config aidr_config.json
    ```
 

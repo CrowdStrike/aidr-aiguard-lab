@@ -32,18 +32,14 @@ not_topic_prefix = "not-topic:"
 valid_detectors = [
     "malicious-prompt",
     "topic",
-    "code-detection",
+    "code",
     "competitors",
-    "language-detection",
+    "language",
     "malicious-entity",
-    "pii-entity",
-    "secrets-detection",
-    # TODO: NOTE: Only malicious-prompt and topic are fully supported right now.
-    # NOTE: Using the overrides parameter names with undercore converted to hyphen for detector names.
-    # NOTE: EXCEPT that we use "malicious-prompt" instead of "prompt-injection" for the malicious prompt detector.
-    # NOTE: The AI Guard API Overrides are out of date - many were changed to topics and API is not yet updated.
-    # NOTE: As the overrides parameter names change, need to update the detector names here.
-    # NOTE: And the TestCase class and associated other clasees.
+    "confidential-and-pii-entity",
+    "secret-and-key-entity",
+    "mcp-validation",
+    "emoji",
 ]
 # Add topic detectors prefixed with "topic:" to the valid detectors
 # We also accept just the topic name without "topic:" prefix
