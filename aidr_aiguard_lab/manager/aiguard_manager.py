@@ -575,6 +575,7 @@ class AIGuardManager:
         # Also grab the raw detectors dict from the API response for label extraction
         assert response.result is not None
         raw_detectors = response.result.detectors
+        assert raw_detectors is not None
         if self.debug:
             print(f"\t{DARK_YELLOW}Detected Detectors: {formatted_json_str(detected_detectors)}{RESET}")
             print(f"\t{DARK_YELLOW}Raw Detectors: {formatted_json_str(raw_detectors)}{RESET}")
