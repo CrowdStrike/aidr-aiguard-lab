@@ -28,8 +28,18 @@ The **AI Guard Lab Tool** is used to evaluate the efficacy of the CrowdStrike AI
    uv sync
    ```
 - CrowdStrike AIDR:
-  1. Obtain an AIDR API token from your AIDR deployment
-  2. Set the AIDR-specific environment variables:
+  1. Create an [Application Collector](https://aidr-docs.crowdstrike.com/docs/aidr/collectors/application).
+  2. Create a [policy](https://aidr-docs.crowdstrike.com/docs/aidr/policies) and assign it to the collector. The policy should have [prompt rules](https://aidr-docs.crowdstrike.com/docs/aidr/policies/prompt-rules) configured with every detector except Custom Entity enabled and set to Report. Detector configurations can remain as defaults:
+     - Malicious Prompt: only "Generic Prompt Injection and Jailbreak Detection" enabled.
+     - Malicious Entity: IP Address, URL, and Domain set to Report.
+     - MCP Validation: similarity threshold at 0.97.
+     - Confidential and PII Entity: Email Address, Credit Card, and US Social Security Number set to Report.
+     - Secret and Key Entity: everything set to Report
+     - Language: confidence threshold at 0.25.
+     - Code: confidence threshold at 0.5.
+     - Topic: confidence threshold at 0.5.
+  3. Obtain the AIDR API token from the collector details page.
+  4. Set the AIDR-specific environment variables:
       ```bash
       export CS_AIDR_BASE_URL_TEMPLATE="https://api.eu-1.crowdstrike.com/aidr/aiguard"
       export CS_AIDR_TOKEN="pts_[...]"
