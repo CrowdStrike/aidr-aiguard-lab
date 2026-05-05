@@ -82,11 +82,12 @@ def apply_synonyms(labels: str | list[str], synonyms: list[str], replacement: st
     """
     Replace any label in labels that matches a synonym in synonyms with the specified replacement.
     Remove duplicates from the resulting list.
+    Case-insensitive comparison.
     """
     if isinstance(labels, str):
         labels = [labels]
 
-    return list(set(replacement if label in synonyms else label for label in labels if isinstance(label, str)))
+    return list(set(replacement if label.lower() in synonyms else label for label in labels if isinstance(label, str)))
 
 
 def formatted_json_str(json_data: object) -> str:
@@ -103,6 +104,11 @@ def get_duration(response: PangeaResponse | None, verbose: bool = False) -> floa
         return 0
 
     duration = response_time - request_time
+    if verbose and duration.total_seconds() >= 1:
+        print(
+            f"{DARK_YELLOW}Warning: API with request_id {response.request_id} took {duration.total_seconds():.2f} seconds.{RESET}"
+        )
+
     return duration.total_seconds()
 
 

@@ -205,6 +205,12 @@ class AIGuardManager:
         with self.efficacy._lock:
             self.efficacy.total_calls += 1
 
+    def add_duration_and_call(self, duration: float) -> None:
+        """Atomically add duration and increment call count to avoid race conditions."""
+        with self.efficacy._lock:
+            self.efficacy.duration_sum += duration
+            self.efficacy.total_calls += 1
+
     def get_total_calls(self) -> int:
         return self.efficacy.total_calls
 
@@ -548,6 +554,7 @@ class AIGuardManager:
             self.efficacy.blocked += 1
 
         if self.verbose:
+            print(f"\t{DARK_YELLOW}request_id: {response.request_id}")
             if blocked:
                 print(f"\t{DARK_RED}Blocked")
             else:
@@ -676,8 +683,7 @@ class AIGuardManager:
 
         duration = get_duration(response, verbose=self.verbose)
         if duration > 0:
-            self.add_total_calls()
-            self.add_duration(duration)
+            self.add_duration_and_call(duration)
 
         if response.status != "Success":
             self.add_error_response(
@@ -821,7 +827,8 @@ class AIGuardTests:
             # If the label is a dict with "kind" and "tag", combine them into the expected format,
             # for example "topic:toxicity" or "not-topic:toxicity".
             # Otherwise, support simple list or string formats for legacy or simple test cases.
-            label_field = test_data.get("label")
+            # Support both "label" (singular) and "labels" (plural) field names
+            label_field = test_data.get("label") or test_data.get("labels")
             labels = []
             if isinstance(label_field, dict) and "kind" in label_field and "tag" in label_field:
                 kind = label_field["kind"].strip().lower()
