@@ -6,8 +6,10 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
-# IMPORTANT: Patch Pydantic models BEFORE importing AIGuard BEM - THIS SHOULD NO LONGER BE NECESSARY ONCE THE API RETURNS FIELDS IN THE EXPECTED SCHEMA
+# IMPORTANT: Patch Pydantic models BEFORE importing AIGuard
 # The API returns extra fields like 'detected' in access_rules that aren't in the model schema
+# NOTE: This patching should not be necessary once the schema has been updated to match the
+# API response, but it allows us to work with the current API without errors.
 from crowdstrike_aidr.models.ai_guard import (
     AccessRuleResult,
     GuardChatCompletionsResponse,
