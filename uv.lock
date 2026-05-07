@@ -25,7 +25,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "argparse", specifier = "==1.4.0" },
-    { name = "crowdstrike-aidr", specifier = "==0.6.0" },
+    { name = "crowdstrike-aidr", specifier = "==0.7.0" },
     { name = "cyclopts", specifier = "==4.5.2" },
     { name = "dotenv", specifier = "==0.9.9" },
     { name = "pip-system-certs", specifier = "==5.3" },
@@ -90,16 +90,16 @@ wheels = [
 
 [[package]]
 name = "crowdstrike-aidr"
-version = "0.6.0"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5f/26/255a6ddd4ba90ba702cb91ea47f722c924328c04300254d387c02bd3df8a/crowdstrike_aidr-0.6.0.tar.gz", hash = "sha256:98959ddb4a153bd255a59b34f70129d07009b1e23b9dca1803779283aa3fa1b6", size = 20798, upload-time = "2026-02-27T18:16:48.027Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/2d/9e59a48cb0fe5bed0caf8b59f6fcb60dda8402ff5ca18dd708c96bdc6982/crowdstrike_aidr-0.7.0.tar.gz", hash = "sha256:7709d1f8637eba2cb16ef1df279c354ab0ac15450b2e30b58e927516fbd38e21", size = 21096, upload-time = "2026-04-16T19:02:37.178Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9f/20/070aa9c44de6772db02028f525ae2e5534d0bff51f89e67068a285e850cd/crowdstrike_aidr-0.6.0-py3-none-any.whl", hash = "sha256:068894261484eb20fc0b14543b963d2dd38d136161ba743232293cd3b2770ad6", size = 25080, upload-time = "2026-02-27T18:16:46.72Z" },
+    { url = "https://files.pythonhosted.org/packages/98/aa/4f03fdc2af7c579fb9c5b3624a30a25c8124fb521740aa3c94e7dc3cd0bc/crowdstrike_aidr-0.7.0-py3-none-any.whl", hash = "sha256:52ef09b709d1d4e73248f29f69c844057da3a85247467c007765d3ff5738003d", size = 25408, upload-time = "2026-04-16T19:02:35.531Z" },
 ]
 
 [[package]]
