@@ -86,8 +86,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/b9/2d/9e59a48cb0fe5bed0caf8b59f6fcb60dda8402ff5ca18dd708c96bdc6982/crowdstrike_aidr-0.7.0.tar.gz", hash = "sha256:7709d1f8637eba2cb16ef1df279c354ab0ac15450b2e30b58e927516fbd38e21", size = 21096, upload-time = "2026-04-16T19:02:37.178Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/98/aa/4f03fdc2af7c579fb9c5b3624a30a25c8124fb521740aa3c94e7dc3cd0bc/crowdstrike_aidr-0.7.0-py3-none-any.whl", hash = "sha256:52ef09b709d1d4e73248f29f69c844057da3a85247467c007765d3ff5738003d" },
+    { url = "https://files.pythonhosted.org/packages/98/aa/4f03fdc2af7c579fb9c5b3624a30a25c8124fb521740aa3c94e7dc3cd0bc/crowdstrike_aidr-0.7.0-py3-none-any.whl", hash = "sha256:52ef09b709d1d4e73248f29f69c844057da3a85247467c007765d3ff5738003d", size = 25408, upload-time = "2026-04-16T19:02:35.531Z" },
 ]
 
 [[package]]
