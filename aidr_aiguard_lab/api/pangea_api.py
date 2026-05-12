@@ -6,24 +6,6 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
-# IMPORTANT: Patch Pydantic models BEFORE importing AIGuard
-# The API returns extra fields like 'detected' in access_rules that aren't in the model schema
-# NOTE: This patching should not be necessary once the schema has been updated to match the
-# API response, but it allows us to work with the current API without errors.
-from crowdstrike_aidr.models.ai_guard import (
-    AccessRuleResult,
-    GuardChatCompletionsResponse,
-    GuardChatCompletionsResult,
-)
-from pydantic import ConfigDict
-
-# Patch AccessRuleResult to allow extra fields
-AccessRuleResult.model_config = ConfigDict(extra="ignore")
-# Rebuild models in dependency order to pick up the new config
-AccessRuleResult.model_rebuild(force=True)
-GuardChatCompletionsResult.model_rebuild(force=True)
-GuardChatCompletionsResponse.model_rebuild(force=True)
-# Now import AIGuard after patching the models
 from crowdstrike_aidr import AIGuard, omit  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 
@@ -31,6 +13,8 @@ from aidr_aiguard_lab.defaults import defaults  # noqa: E402
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+
+    from crowdstrike_aidr.models.ai_guard import GuardChatCompletionsResponse
 
 
 load_dotenv(override=True)
