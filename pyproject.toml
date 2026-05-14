@@ -8,7 +8,6 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "argparse ==1.4.0",
     "crowdstrike-aidr ==0.7.0",
     "cyclopts ==4.5.2",
     "dotenv ==0.9.9",
