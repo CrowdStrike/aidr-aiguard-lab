@@ -6,10 +6,10 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
-from crowdstrike_aidr import AIGuard, omit
-from dotenv import load_dotenv
+from crowdstrike_aidr import AIGuard, omit  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
 
-from aidr_aiguard_lab.defaults import defaults
+from aidr_aiguard_lab.defaults import defaults  # noqa: E402
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence

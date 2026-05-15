@@ -580,6 +580,11 @@ class EfficacyTracker:
         tn_test_count = len(self.true_negatives)
         total_test_count = fp_test_count + fn_test_count + tp_test_count + tn_test_count
 
+        # Acquire lock to read duration_sum and total_calls atomically
+        with self._lock:
+            duration_sum = self.duration_sum
+            total_calls = self.total_calls
+
         tp = self.tp_count
         fp = self.fp_count
         fn = self.fn_count
@@ -610,8 +615,8 @@ class EfficacyTracker:
             "tn_count": self.tn_count,
             "fp_count": self.fp_count,
             "fn_count": self.fn_count,
-            "avg_duration": self.duration_sum / self.total_calls if self.total_calls else 0.0,
-            "total_calls": self.total_calls,
+            "avg_duration": duration_sum / total_calls if total_calls else 0.0,
+            "total_calls": total_calls,
             "total_saved_test_count": total_test_count,
             "fp_saved_test_count": fp_test_count,
             "fn_saved_test_count": fn_test_count,
